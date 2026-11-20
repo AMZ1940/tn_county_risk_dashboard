@@ -8,7 +8,7 @@
 
   /* ------------------------------------------------------------------ CONFIG */
   const CONFIG = {
-    CLIENT_ID: "w9VaoRCHch2gIU1d",
+    CLIENT_ID: "SOme9Mv9P4kEIzH9",
     PORTAL_URL: "https://www.arcgis.com"   // change to https://<your-org>.maps.arcgis.com or your Enterprise portal if needed
   };
 
