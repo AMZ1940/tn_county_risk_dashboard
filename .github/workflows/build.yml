@@ -54,8 +54,14 @@ jobs:
       - uses: actions/upload-pages-artifact@v4
         with:
           path: _site
-      - id: deployment
-        uses: actions/deploy-pages@v4
+
+  # Publishing runs as its own job after the build, as GitHub recommends for deploy-pages.
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
