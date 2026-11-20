@@ -51,7 +51,7 @@ window.RK = (() => {
       .on('pointermove', (ev, d) => tt.show(ev, tip ? tip(d) : [label(d), fmt(value(d))])).on('pointerleave', () => tt.hide());
   }
   // vertical (optionally stacked) bars
-  function vbar(el, rows, { x, keys, fmt, colors, tip, height = 240, labelEvery }) {
+  function vbar(el, rows, { x, keys, fmt, colors, tip, height = 240, labelEvery, tickLabel }) {
     el.classList.remove('dash-skeleton'); el.replaceChildren();
     const W = el.clientWidth || 300, H = height, m = { t: 10, r: 8, b: 34, l: 10 };
     const max = d3.max(rows, (r) => d3.sum(keys, (k) => Math.max(0, r[k] || 0))) || 1;
@@ -63,7 +63,7 @@ window.RK = (() => {
     svg.insert('g', ':first-child').selectAll('line').data(y.ticks(5)).join('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y).attr('y2', y).style('stroke', 'var(--cds-chart-grid)');
     const xb = d3.scaleBand().domain(rows.map(x)).range([m.l, W - m.r]).padding(0.2);
     const every = labelEvery || Math.max(1, Math.ceil(rows.length / Math.max(1, Math.floor((W - m.l) / 46))));
-    const xa = svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(xb).tickSize(0).tickFormat((d, i) => i % every ? '' : String(d).split(' ')[0]));
+    const xa = svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(xb).tickSize(0).tickFormat((d, i) => i % every ? '' : (tickLabel ? tickLabel(d) : String(d).split(' ')[0])));
     xa.select('.domain').style('stroke', 'var(--cds-chart-axis)');
     const tt = tooltip(el);
     rows.forEach((r) => {

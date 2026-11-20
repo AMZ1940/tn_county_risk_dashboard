@@ -1,95 +1,101 @@
 # Tennessee County Disaster Risk — Historical PA Analysis
 
-A static dashboard of Tennessee county disaster risk, built from FEMA declarations and Public Assistance Category A and B records from January 1999 to November 18, 2026. It has:
+A dashboard of Tennessee county disaster risk built from FEMA declarations, FEMA Public Assistance (PA) projects in every category, and TEMA damage assessments. It includes:
 
-- a hazard filter that recalculates every section for the hazard you pick
-- a county heat map with a choice of measure; clicking a county (or a scorecard row) loads that county's profile
-- statewide KPIs, the county scorecard, region and economic-status comparisons, hazard characteristics, per capita threshold results, Cat A vs. Cat B, trends and gaps
+- **Filters:** hazard, PA categories (A–G and Z, with presets), map measure, and damage assessment mission.
+- **County heat map:** clicking a county, or a scorecard row, loads that county's profile.
+- **Analysis sections:** statewide KPIs, the county scorecard, region and economic-status comparisons, hazard characteristics, per capita threshold results, PA by category, trends and gaps.
+- **Damage assessments:** read live from ArcGIS after sign-in. Training records are removed, and each mission is linked to its FEMA declaration.
 
-It is plain HTML, CSS and JavaScript with no build step, so it runs on GitHub Pages as-is. Users must sign in with ArcGIS (OAuth 2.0) before the dashboard loads, using the same setup as the county profile site.
+Users sign in with ArcGIS (OAuth 2.0, same setup as the county profile site) before anything loads.
 
-## What's in the repo
+## How updating works
 
-```
-index.html                 page layout, styles and the sign-in screen
-oauth-callback.html        receives the ArcGIS sign-in response in the pop-up and hands it back to the page
-js/auth.js                 ArcGIS sign-in (client ID and portal URL are at the top)
-js/dash-runtime.js         small engine: loads data, runs calculations, redraws on filter changes,
-                           keeps filters in the URL (#hazard=Flooding&county=Shelby)
-js/rk.js                   formatting, tooltip and bar chart helpers
-js/calcs.js                calculations that follow the hazard filter (scores, tiers, regions, trend, gaps)
-js/draws.js                map, charts and tables
-js/d3.min.js               D3 v7.9.0 (ISC license, js/d3-LICENSE.txt), included so no CDN is needed
-js/data-bundle.js          all datasets in one script, loaded after sign-in (generated, do not edit)
-data/*.json                the datasets (counties, designations, disasters, hazards, emNotCarried, tnCounties)
-downloads/                 TN_County_Disaster_Risk_Tables.xlsx (linked from the page header)
-scripts/analyze.py         the analysis: GRRF_PowerQ.xlsx -> out/ds/*.json
-scripts/build_xlsx.py      out/ds/*.json -> the Excel tables
-scripts/update_data.py     out/ds/*.json -> data/*.json -> js/data-bundle.js
-.nojekyll                  tells GitHub Pages to serve files as-is
-```
+You never edit the dashboard to update it. Replace a file in `source/`. A GitHub Action then:
+1. rebuilds the data
+2. saves it to the repository
+3. republishes the site
 
-## One-time ArcGIS setup (required)
+| File in `source/` | What it is | How to update it |
+|---|---|---|
+| `*DisasterDeclarationsSummaries*.csv` | OpenFEMA Disaster Declarations Summaries (v2) | Run the Action with **Download** checked, or upload a new copy |
+| `*PublicAssistanceFundedProjectsDetails*.csv` | OpenFEMA PA Funded Projects Details (v1), all categories | Run the Action with **Download** checked, or upload a Tennessee-only copy |
+| `Mission_Numbers.xlsx` | TEMA mission number → FEMA disaster number | Upload a new copy with the same column headers |
+| `fema_per_capita_indicators.csv` | FEMA countywide per capita indicator by fiscal year | Add a row when FEMA publishes a new fiscal year |
+| `tn_counties.csv` | County FIPS, TEMA region, economic status, 2020 population | Rarely |
+| `grrf_deobligations_AB.csv` | Cat A + B deobligations from the GRRF workbook | Static (see notes) |
+| `tnCounties.geojson` | County outlines for the map | Static |
 
-Sign-in uses the same OAuth 2.0 credentials as the county profile site (client ID `w9VaoRCHch2gIU1d`). That item needs to know this site's addresses.
+The two OpenFEMA files can hold every state; the build keeps Tennessee rows only.
 
-1. In ArcGIS Online, open the OAuth 2.0 credentials item with client ID `w9VaoRCHch2gIU1d` and go to **Settings → Redirect URLs**.
-2. Keep the county profile URLs that are already there, and add these three. Change `tn-county-risk` if you name the repository something else:
+**File sizes:** GitHub's web upload takes files up to 25 MB, and GitHub blocks any file over 100 MB. The nationwide PA file is about 290 MB, so it can't go in the repository. You have two options:
+- **Easiest:** go to **Actions → Build and publish dashboard → Run workflow** and check **Download the latest Tennessee data from OpenFEMA first**. The Action pulls only Tennessee rows straight from the OpenFEMA API, about 6 MB for PA and under 1 MB for declarations.
+- **Manual:** download Tennessee-only files and upload them to `source/`. When a new file is uploaded, the build uses the newest one whose name matches. Delete the old one to keep things tidy.
+
+If you want automatic weekly refreshes, remove the `#` from the two `schedule` lines in `.github/workflows/build.yml`.
+
+## One-time setup
+
+1. **Create the repository.** Upload everything in this folder, including the hidden `.github` folder, for example to `tn-county-risk`.
+2. **Turn on Pages.** Go to **Settings → Pages → Build and deployment**, set **Source** to **GitHub Actions**. (This replaces "Deploy from a branch".)
+3. **Allow the Action to save data.** Go to **Settings → Actions → General → Workflow permissions**, choose **Read and write permissions**, and save. If your organization blocks this, the site still publishes, but the rebuilt data isn't saved back to `data/`.
+4. **Run it once.** Go to **Actions → Build and publish dashboard → Run workflow**. The site is at `https://amz1940.github.io/tn-county-risk/`.
+5. **Set up ArcGIS sign-in.** In the OAuth 2.0 credentials item for client ID `w9VaoRCHch2gIU1d`, under **Settings → Redirect URLs**, add:
    - `https://amz1940.github.io/tn-county-risk/`
    - `https://amz1940.github.io/tn-county-risk/index.html`
-   - `https://amz1940.github.io/tn-county-risk/oauth-callback.html` (needed for the pop-up when embedded in Experience Builder)
-3. Save.
+   - `https://amz1940.github.io/tn-county-risk/oauth-callback.html`
+6. **Connect damage assessments.** Put the damage assessment layer's REST URL in `DA_LAYER_URL` at the top of `js/da.js`. It ends in `/FeatureServer/0` or the right layer number. Fields are found by their aliases, the column headers in `PREDs_Fields.xlsx`, so nothing else needs typing. Sign-in uses the viewer's own ArcGIS account, so they only see the assessments that account is allowed to see.
 
-How sign-in behaves:
-- **Opened directly:** the page sends you to the ArcGIS sign-in page and back.
-- **Embedded in an iframe** (for example the Experience Builder Embed widget): sign-in opens in a pop-up window, and `oauth-callback.html` passes the result back. If the pop-up is blocked, the page offers a link to open the dashboard in a new tab.
+## Damage assessments
 
-If your organization signs in through its own URL (for example `https://yourorg.maps.arcgis.com`) or through ArcGIS Enterprise, change `PORTAL_URL` at the top of `js/auth.js`.
+- **Filtering:** these records are removed, both in the layer query and again in the page:
+  - records marked **Training**
+  - mission **#999** (the training number)
+  - records with **Soft Delete = yes**
+- **What's requested:** only the fields needed for counts. No names, addresses, parcel details or coordinates. The records stay in the viewer's browser and are never saved to GitHub.
+- **Linking to declarations:** `Mission_Numbers.xlsx` links a mission (incident year + mission number) to a FEMA disaster number.
+  - A cell listing several numbers ("24, 25, and 26") links each of them.
+  - A cell that says "Possibly" is shown as unverified.
+  - "N/A" rows are skipped.
+  - When a mission has both an EM and a DR, the DR is used.
+- **Unlinked missions:** these use the recorded event type for the hazard filter: tornado → severe storms & tornadoes, flood → flooding.
 
-## Put it on GitHub Pages
+## Files
 
-1. Create a repository (for example `tn-county-risk`) and upload everything in this folder, including `.nojekyll`.
-2. In the repository, go to **Settings → Pages**. Under **Build and deployment**, choose **Deploy from a branch**, pick `main` and `/ (root)`, and save.
-3. After a minute or two the site is at `https://amz1940.github.io/tn-county-risk/`, and you should see the sign-in screen.
-
-GitHub Pages works with public repositories on a free account. A private repository needs GitHub Pro, Team or Enterprise. Either way, the published site is public on the internet unless your organization uses GitHub Enterprise Cloud's private Pages, so everything in `data/` and `downloads/` can be seen by anyone with the link.
-
-## Use it in ArcGIS Online
-
-ArcGIS Online doesn't store the files for an outside web app. It points to the URL, so GitHub keeps hosting the files. There are two ways to connect them:
-
-**As an item in your content.** In ArcGIS Online go to **Content → New item → Application**. Choose **Web mapping** (or **Other application**), paste the GitHub Pages URL, then add a title, tags and summary. You can share the item with your organization or groups like any other item.
-
-**Inside an Experience Builder app.** Add an **Embed** widget, choose **Embed by URL**, and paste the GitHub Pages URL. The widget only accepts HTTPS URLs, and it sandboxes sites outside `*.arcgis.com`. This page doesn't fetch any files at run time, so it works inside that sandbox. To open on a county or hazard, add the filters to the URL, for example `.../tn-county-risk/#county=Madison&hazard=Flooding`.
-
-**What the sign-in does and doesn't protect:** it keeps the dashboard from showing until someone signs in with ArcGIS. The files on a GitHub Pages site are still public, though, so anyone who knows the address of `js/data-bundle.js`, `data/` or `downloads/` can open them directly. To truly restrict the data, store it as a secured ArcGIS layer or table and have the page load it with the user's sign-in token.
-
-## Update the data
-
-The page needs the source workbook, `GRRF_PowerQ.xlsx`, only if you're re-running the analysis. Don't commit the workbook unless it's fine for it to be public.
-
-```bash
-pip install pandas numpy openpyxl
-python scripts/analyze.py path/to/GRRF_PowerQ.xlsx         # writes out/ and out/ds/
-python scripts/update_data.py --from out/ds                # refreshes data/ and js/data-bundle.js
-python scripts/build_xlsx.py out/ds downloads/TN_County_Disaster_Risk_Tables.xlsx
+```
+index.html                 layout, styles and the sign-in screen
+oauth-callback.html        hands the ArcGIS sign-in result from the pop-up back to the page
+js/auth.js                 ArcGIS sign-in (client ID and portal URL at the top)
+js/da.js                   damage assessments from ArcGIS (layer URL and field aliases at the top)
+js/dash-runtime.js         loads data, runs calculations, redraws on filter changes, keeps filters in the URL
+js/calcs.js                calculations for the hazard, category and mission filters
+js/draws.js                map, charts and tables
+js/rk.js                   formatting, tooltip and bar chart helpers
+js/d3.min.js               D3 v7.9.0 (ISC license, js/d3-LICENSE.txt)
+js/data-bundle.js          all datasets in one script (generated)
+data/*.json                the datasets (generated)
+downloads/                 Excel tables (generated, linked from the page)
+scripts/build_data.py      source/ -> data/, js/data-bundle.js and the Excel tables
+scripts/build_xlsx.py      the Excel tables
+scripts/download_openfema.py  Tennessee rows from the OpenFEMA API -> source/
+.github/workflows/build.yml   the Action
 ```
 
-Then commit and push. GitHub Pages republishes automatically.
+To run locally:
 
-Two things are fixed in the code and need editing when the window moves:
-
-- the end date of the analysis window (`AS_OF` in `analyze.py`, and `Date.UTC(2026, 10, 18)` in `js/calcs.js`, where JavaScript months start at 0)
-- the FEMA countywide per capita indicator table (`COUNTY_IND` in `analyze.py`) when FEMA publishes a new fiscal year's value
-
-To try the page locally, run `python -m http.server` in this folder and open `http://localhost:8000/?preview`. The `?preview` skips sign-in, and it only works on localhost.
+```bash
+pip install pandas openpyxl
+python scripts/build_data.py
+python -m http.server        # then open http://localhost:8000/?preview  (skips sign-in on localhost only)
+```
 
 ## Method notes
 
-- Only PA Categories A and B are in the source, so dollars and threshold tests are a floor, not full PA.
-- Threshold = FEMA countywide per capita indicator for the fiscal year × 2020 census population (FY2002 on).
-- Adjusted dollars use the ratio of the FY2026 indicator to the declaration year's indicator. FY1999–FY2001 have no verified indicator, so they are kept at nominal value.
-- Score = average percentile of designations per year, expected Cat A + B per resident per year, and share of designations meeting the indicator. Tiers are in steps of 20.
-- 5-year chance = 1 − e^(−5λ), where λ is designations per year.
-- COVID-19, Katrina evacuation sheltering (EM-3217) and the 2020 Nashville explosion (EM-3552) are left out of the risk measures.
-- County outlines are U.S. Census boundaries (plotly/datasets GeoJSON).
+- **Federal share** = federal share obligated. **Total project cost** = FEMA's estimated total project cost (federal + non-federal).
+- **Threshold test:** total project cost in the selected categories vs. countywide per capita indicator × 2020 population (FY2002 on). FEMA's indicator measures federal and non-federal cost.
+- **Adjusted dollars** use the ratio of the FY2026 indicator to the declaration year's indicator. FY1999–FY2001 stay nominal.
+- **Deobligations:** the OpenFEMA project file holds current obligations only, so deobligations still come from the GRRF workbook (Cat A + B). OpenFEMA's *PA Grant Award Activities* dataset lists obligations and deobligations by project version and could replace this later.
+- **County assignment:** projects with a blank county are assigned by the applicant ID's county FIPS prefix. Statewide (state agency) projects count toward declaration totals, not county measures.
+- **Score** = average percentile of designations per year, expected federal share per resident per year, and share of designations meeting the indicator.
+- **Exclusions:** COVID-19, Katrina evacuation sheltering (EM-3217) and the 2020 Nashville explosion (EM-3552) are left out of the risk measures.
+- **What sign-in protects:** it hides the dashboard, but files on a GitHub Pages site are public to anyone who knows their address. The OpenFEMA data is public anyway. Damage assessments are never stored on the site.

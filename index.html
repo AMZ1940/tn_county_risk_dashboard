@@ -108,13 +108,19 @@ body{margin:0;padding:24px clamp(12px,3vw,40px) 48px;max-width:1280px;margin-inl
 .rk .map{position:relative;width:100%;min-height:200px}
 .rk .map path:focus{outline:none;stroke:var(--color-fg);stroke-width:2.2px}
 .rk .note{border-left:3px solid var(--color-warn);padding-left:var(--cds-pad-md)}
+.rk fieldset.cats{border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:var(--cds-font-size-caption);color:var(--color-fg-muted)}
+.rk fieldset.cats legend{padding:0;margin-bottom:4px}
+.rk fieldset.cats .row{gap:6px}
+.rk label.chk{display:inline-flex;flex-direction:row;align-items:center;gap:3px;color:var(--color-fg);font-weight:600;border:1px solid var(--color-border-line);border-radius:6px;padding:3px 6px;cursor:pointer}
+.rk .btn.sm{padding:3px 8px;font-size:11.5px}
+.rk .note-err{color:var(--color-bad);font-size:var(--cds-font-size-caption);border-left:3px solid var(--color-bad);padding-left:var(--cds-pad-md)}
 </style>
 
 <div class="rk">
 <header id="top">
   <h1>Tennessee county disaster risk from declaration history</h1>
-  <p class="muted">Major disaster declarations since January 1999 with Public Assistance Category A (debris) and B (emergency protective measures) obligations. Pandemic, Katrina evacuation sheltering and the 2020 Nashville explosion are left out of the risk measures. <a href="downloads/TN_County_Disaster_Risk_Tables.xlsx">Download the tables (Excel)</a>.</p>
-  <p class="lede" id="takeaway">Across <b data-draw="sw-desig" data-source="regionHaz" data-field="designations" data-where="region=Statewide">—</b> county designations for <span data-draw="sw-haz">—</span> major disasters, Category A and B alone met the countywide per capita indicator in <b data-draw="sw-met" data-source="regionHaz" data-field="met" data-where="region=Statewide">—</b> of <b data-draw="sw-tested" data-source="regionHaz" data-field="tested" data-where="region=Statewide">—</b> tested designations. <b data-draw="top-county" data-source="countyHaz" data-field="county" data-row="0">—</b> ranks highest on the history-based score.</p>
+  <p class="muted">FEMA major disaster declarations since January 1999 with Public Assistance (PA) project obligations from OpenFEMA, plus TEMA damage assessments from ArcGIS. Pandemic, Katrina evacuation sheltering and the 2020 Nashville explosion are left out of the risk measures. Data as of <b data-draw="as-of">—</b>. <a href="downloads/TN_County_Disaster_Risk_Tables.xlsx">Download the tables (Excel)</a>.</p>
+  <p class="lede" id="takeaway">Across <b data-draw="sw-desig" data-source="regionHaz" data-field="designations" data-where="region=Statewide">—</b> county designations for <span data-draw="sw-haz">—</span> major disasters, the total project cost in <span data-draw="cat-label-lc">—</span> met the countywide per capita indicator in <b data-draw="sw-met" data-source="regionHaz" data-field="met" data-where="region=Statewide">—</b> of <b data-draw="sw-tested" data-source="regionHaz" data-field="tested" data-where="region=Statewide">—</b> tested designations. <b data-draw="top-county" data-source="countyHaz" data-field="county" data-row="0">—</b> ranks highest on the history-based score.</p>
 </header>
 
 <section id="filters" class="filters" aria-label="Filters">
@@ -126,56 +132,74 @@ body{margin:0;padding:24px clamp(12px,3vw,40px) 48px;max-width:1280px;margin-inl
     <option value="Tropical">Tropical</option>
     <option value="Wildfire">Wildfire</option>
   </select></label>
+  <fieldset class="cats" aria-label="PA categories">
+    <legend>PA categories</legend>
+    <div class="row">
+      <label class="chk"><input type="checkbox" data-cat="A">A</label><label class="chk"><input type="checkbox" data-cat="B">B</label>
+      <label class="chk"><input type="checkbox" data-cat="C">C</label><label class="chk"><input type="checkbox" data-cat="D">D</label>
+      <label class="chk"><input type="checkbox" data-cat="E">E</label><label class="chk"><input type="checkbox" data-cat="F">F</label>
+      <label class="chk"><input type="checkbox" data-cat="G">G</label><label class="chk"><input type="checkbox" data-cat="Z">Z</label>
+    </div>
+    <div class="row presets">
+      <button type="button" class="btn sm" data-cats-preset="ABCDEFG">All damage (A–G)</button>
+      <button type="button" class="btn sm" data-cats-preset="AB">Emergency work (A–B)</button>
+      <button type="button" class="btn sm" data-cats-preset="CDEFG">Permanent work (C–G)</button>
+    </div>
+  </fieldset>
   <label>Shade map by<select class="dash-select" data-ctl="mapMetric" data-default="score" aria-label="Shade map by">
     <option value="score">History-based score</option>
     <option value="paDR">PA major designations</option>
     <option value="p5yr">5-year chance</option>
     <option value="ealPerCap">$ per resident per year</option>
-    <option value="met">Times A + B met the indicator</option>
+    <option value="met">Times the indicator was met</option>
+    <option value="daSevere">Damage assessments: destroyed + major</option>
+    <option value="daTotal">Damage assessments: all</option>
   </select></label>
+  <label>Damage assessment mission<select class="dash-select" data-draw="da-mission-select" aria-label="Damage assessment mission"></select></label>
   <button type="button" class="btn" data-reset>Reset filters</button>
-  <p class="muted" style="flex:1 1 220px">Showing <b data-draw="haz-label">—</b>. Click a county on the map, the scorecard or the list to load its profile.</p>
+  <p class="muted" style="flex:1 1 220px">Showing <b data-draw="haz-label">—</b>, PA <b data-draw="cat-label">—</b>. Click a county on the map, the scorecard or the list to load its profile.</p>
 </section>
 
 <section id="map" class="card">
   <h2>Counties at a glance</h2>
-  <p class="muted">Shading uses five equal-count classes for the selected measure and hazard. Darker = higher.</p>
+  <p class="muted">Shading uses five equal-count classes for the selected measure and filters. Darker = higher.</p>
   <div class="map" data-draw="tn-map" data-source="countyHaz tnCounties"></div>
 </section>
 
 <section id="statewide">
   <div class="kpis">
     <div class="card kpi"><div class="l">County designations (PA, natural hazards)</div><div class="v" data-draw="k-desig" data-source="regionHaz" data-field="designations" data-where="region=Statewide">—</div><div class="l">Since Jan 1999</div></div>
-    <div class="card kpi"><div class="l">Net Cat A + B obligated, FY2026 $</div><div class="v" data-draw="k-net" data-source="regionHaz" data-field="netABAdj" data-where="region=Statewide">—</div><div class="l">Federal share, county applicants</div></div>
-    <div class="card kpi"><div class="l">Expected Cat A + B per resident per year</div><div class="v" data-draw="k-eal" data-source="regionHaz" data-field="ealPerCap" data-where="region=Statewide">—</div><div class="l">Statewide, FY2026 $</div></div>
-    <div class="card kpi"><div class="l">Deobligated</div><div class="v" data-draw="k-deob" data-source="regionHaz" data-field="deob" data-where="region=Statewide">—</div><div class="l"><span data-draw="k-deobrate" data-source="regionHaz" data-field="deobRate" data-where="region=Statewide">—</span> of gross obligations</div></div>
-    <div class="card kpi"><div class="l">Designated, $0 in Cat A + B</div><div class="v" data-draw="k-zero" data-source="regionHaz" data-field="zeroPA" data-where="region=Statewide">—</div><div class="l">Declared more than 2 years ago</div></div>
+    <div class="card kpi"><div class="l">Federal share obligated, <span data-draw="base-fy">—</span> $</div><div class="v" data-draw="k-net" data-source="regionHaz" data-field="fedAdj" data-where="region=Statewide">—</div><div class="l"><span data-draw="cat-label">—</span>, county-level projects. Statewide (state agency) projects add <span data-draw="k-statewide">—</span>, all categories, nominal.</div></div>
+    <div class="card kpi"><div class="l">Expected federal share per resident per year</div><div class="v" data-draw="k-eal" data-source="regionHaz" data-field="ealPerCap" data-where="region=Statewide">—</div><div class="l">Statewide, <span data-draw="base-fy">—</span> $</div></div>
+    <div class="card kpi"><div class="l">Deobligated, Cat A + B</div><div class="v" data-draw="k-deob" data-source="regionHaz" data-field="deobAB" data-where="region=Statewide">—</div><div class="l"><span data-draw="k-deobrate" data-source="regionHaz" data-field="deobRateAB" data-where="region=Statewide">—</span> of gross. From the GRRF workbook; doesn't follow the category filter.</div></div>
+    <div class="card kpi"><div class="l">Designated, $0 in these categories</div><div class="v" data-draw="k-zero" data-source="regionHaz" data-field="zeroPA" data-where="region=Statewide">—</div><div class="l">Declared more than 2 years ago</div></div>
   </div>
 </section>
 
 <section id="county" class="card">
   <div class="row sel-row" style="justify-content:space-between">
-    <div><h2>County risk profile: <span data-draw="c-name" data-source="countyPick" data-field="county" data-row="0">—</span></h2><p class="muted">Pick a county to see its history, how it compares with its region and the state, and its gaps.</p></div>
+    <div><h2>County risk profile: <span data-draw="c-name" data-source="countyPick" data-field="county" data-row="0">—</span></h2><p class="muted">Pick a county to see its history, how it compares with its region and the state, its damage assessments and its gaps.</p></div>
     <label>County<select class="dash-select" data-draw="county-select" aria-label="County" data-source="counties"></select></label>
   </div>
   <div class="kpis" style="margin-top:var(--cds-gap-md)">
     <div class="kpi"><div class="l">History-based score (0–100)</div><div class="v" data-draw="c-score" data-source="countyPick" data-field="score" data-row="0">—</div><div class="l"><span data-draw="c-tier" data-source="countyPick" data-field="tier" data-row="0">—</span> · rank <span data-draw="c-rank" data-source="countyPick" data-field="rank" data-row="0">—</span> of 95</div></div>
     <div class="kpi"><div class="l">Chance of ≥1 PA major disaster in 5 years</div><div class="v" data-draw="c-p5" data-source="countyPick" data-field="p5yr" data-row="0">—</div><div class="l"><span data-draw="c-rate" data-source="countyPick" data-field="ratePerYr" data-row="0">—</span> designations a year</div></div>
-    <div class="kpi"><div class="l">Expected Cat A + B per resident per year</div><div class="v" data-draw="c-eal" data-source="countyPick" data-field="ealPerCap" data-row="0">—</div><div class="l">State: <span data-draw="c-eal-sw" data-source="regionHaz" data-field="ealPerCap" data-where="region=Statewide">—</span></div></div>
-    <div class="kpi"><div class="l">Met countywide indicator with A + B alone</div><div class="v"><span data-draw="c-met" data-source="countyPick" data-field="met" data-row="0">—</span> of <span data-draw="c-tested" data-source="countyPick" data-field="tested" data-row="0">—</span></div><div class="l">Highest: <span data-draw="c-maxmult" data-source="countyPick" data-field="maxMultiple" data-row="0">—</span> × indicator</div></div>
-    <div class="kpi"><div class="l">Designated, $0 in A + B</div><div class="v" data-draw="c-zero" data-source="countyPick" data-field="zeroPA" data-row="0">—</div><div class="l">Last PA major disaster: <span data-draw="c-last" data-source="countyPick" data-field="lastDR" data-row="0">—</span></div></div>
+    <div class="kpi"><div class="l">Expected federal share per resident per year</div><div class="v" data-draw="c-eal" data-source="countyPick" data-field="ealPerCap" data-row="0">—</div><div class="l">State: <span data-draw="c-eal-sw" data-source="regionHaz" data-field="ealPerCap" data-where="region=Statewide">—</span></div></div>
+    <div class="kpi"><div class="l">Met countywide indicator</div><div class="v"><span data-draw="c-met" data-source="countyPick" data-field="met" data-row="0">—</span> of <span data-draw="c-tested" data-source="countyPick" data-field="tested" data-row="0">—</span></div><div class="l">Highest: <span data-draw="c-maxmult" data-source="countyPick" data-field="maxMultiple" data-row="0">—</span> × indicator</div></div>
+    <div class="kpi"><div class="l">Designated, $0 in these categories</div><div class="v" data-draw="c-zero" data-source="countyPick" data-field="zeroPA" data-row="0">—</div><div class="l">Last PA major disaster: <span data-draw="c-last" data-source="countyPick" data-field="lastDR" data-row="0">—</span></div></div>
   </div>
+  <p style="margin-top:var(--cds-gap-sm)"><b>Damage assessments:</b> <span data-draw="c-da" data-source="daPick">—</span></p>
   <div class="grid" style="margin-top:var(--cds-gap-md)">
-    <div id="county-compare"><h3>County vs. region vs. state</h3><p class="muted">Expected Cat A + B per resident per year (FY2026 $)</p><div class="chart" data-draw="cmp-eal" data-source="countyCompare"></div></div>
+    <div id="county-compare"><h3>County vs. region vs. state</h3><p class="muted">Expected federal share per resident per year (<span data-draw="base-fy">—</span> $)</p><div class="chart" data-draw="cmp-eal" data-source="countyCompare"></div></div>
     <div id="county-compare-freq"><h3>Designations per county since 1999</h3><p class="muted">Region and state show the average county</p><div class="chart" data-draw="cmp-freq" data-source="countyCompare"></div></div>
     <div id="county-hazards"><h3>Designations by hazard</h3><p class="muted">PA major disasters since 1999</p><div class="chart" data-draw="c-haz" data-source="countyPick"></div></div>
   </div>
   <div id="county-history" style="margin-top:var(--cds-gap-md)">
     <h3>Designation history</h3>
-    <p class="muted">Threshold = countywide per capita indicator for that fiscal year × 2020 population. A + B are the only PA categories in this data, so "below" doesn't mean the county missed the threshold in the damage assessment.</p>
+    <p class="muted">Threshold = countywide per capita indicator for that fiscal year × 2020 population. It's compared with the total project cost (federal and non-federal) in the selected categories, the way FEMA's indicator is applied to estimated costs.</p>
     <div class="chart" data-draw="c-mult" data-source="countyHist" style="min-height:200px"></div>
     <div class="tw tall-table"><table data-source="countyHist" data-row-key="disasterNumber">
-      <thead><tr><th data-field="disasterNumber">Declaration</th><th data-field="declDate">Declared</th><th data-field="hazard">Hazard</th><th class="n" data-field="durationDays">Days</th><th class="n" data-field="netA">Cat A</th><th class="n" data-field="netB">Cat B</th><th class="n" data-field="deob">Deobligated</th><th class="n" data-field="threshold">Threshold</th><th class="n" data-field="thresholdMultiple">× threshold</th><th data-field="dominant">Dominant</th></tr></thead>
+      <thead><tr><th data-field="disasterNumber">Declaration</th><th data-field="declDate">Declared</th><th data-field="hazard">Hazard</th><th class="n" data-field="durationDays">Days</th><th class="n" data-field="fed">Federal share</th><th class="n" data-field="amt">Total project cost</th><th class="n" data-field="threshold">Threshold</th><th class="n" data-field="thresholdMultiple">× threshold</th><th data-field="topCat">Largest category</th><th class="n" data-field="deobAB">Deobligated A + B</th></tr></thead>
       <tbody data-draw="c-hist-rows"></tbody>
     </table></div>
   </div>
@@ -183,11 +207,11 @@ body{margin:0;padding:24px clamp(12px,3vw,40px) 48px;max-width:1280px;margin-inl
 
 <section id="ranking">
   <h2>Where the history points: all 95 counties</h2>
-  <p class="muted">Score = average percentile of three things: how often the county is designated, expected Cat A + B per resident per year, and how often A + B alone met the countywide indicator. It ranks counties against each other and is a starting point, not a forecast. With a hazard picked, counties are scored on that hazard alone. Click a row to load the county.</p>
+  <p class="muted">Score = average percentile of three things: how often the county is designated, expected federal share per resident per year, and how often the total project cost met the countywide indicator. It ranks counties against each other and is a starting point, not a forecast. Counties are scored on the hazard and PA categories picked. Click a row to load the county.</p>
   <div class="grid" style="margin-top:var(--cds-gap-sm)">
     <div class="card" id="rank-chart"><h3>Top 15 by score</h3><div class="chart tall" data-draw="rank-bars" data-source="countyHaz"></div></div>
     <div class="card" id="rank-table"><h3>Scorecard</h3><div class="tw tall-table"><table data-source="countyHaz" data-row-key="county">
-      <thead><tr><th class="n" data-field="rank">#</th><th data-field="county">County</th><th data-field="region">Region</th><th data-field="econ">Economic status</th><th class="n" data-field="paDR">PA majors</th><th class="n" data-field="p5yr">5-yr chance</th><th class="n" data-field="ealPerCap">$/resident/yr</th><th class="n" data-field="met">Met</th><th class="n" data-field="zeroPA">$0 A+B</th><th class="n" data-field="score">Score</th><th data-field="tier">Tier</th></tr></thead>
+      <thead><tr><th class="n" data-field="rank">#</th><th data-field="county">County</th><th data-field="region">Region</th><th data-field="econ">Economic status</th><th class="n" data-field="paDR">PA majors</th><th class="n" data-field="p5yr">5-yr chance</th><th class="n" data-field="ealPerCap">$/resident/yr</th><th class="n" data-field="met">Met</th><th class="n" data-field="zeroPA">$0</th><th class="n" data-field="score">Score</th><th data-field="tier">Tier</th></tr></thead>
       <tbody data-draw="rank-rows"></tbody></table></div></div>
   </div>
 </section>
@@ -196,72 +220,95 @@ body{margin:0;padding:24px clamp(12px,3vw,40px) 48px;max-width:1280px;margin-inl
   <h2>Regions and economic status</h2>
   <div class="grid">
     <div class="card" id="reg-freq"><h3>Designations per county</h3><p class="muted">PA major disasters since 1999</p><div class="chart" data-draw="reg-freq" data-source="regionHaz"></div></div>
-    <div class="card" id="reg-eal"><h3>Expected Cat A + B per resident per year</h3><p class="muted">FY2026 $</p><div class="chart" data-draw="reg-eal" data-source="regionHaz"></div></div>
-    <div class="card" id="reg-met"><h3>Share of designations meeting the indicator with A + B alone</h3><div class="chart" data-draw="reg-met" data-source="regionHaz"></div></div>
+    <div class="card" id="reg-eal"><h3>Expected federal share per resident per year</h3><p class="muted"><span data-draw="base-fy">—</span> $</p><div class="chart" data-draw="reg-eal" data-source="regionHaz"></div></div>
+    <div class="card" id="reg-met"><h3>Share of designations meeting the indicator</h3><div class="chart" data-draw="reg-met" data-source="regionHaz"></div></div>
   </div>
-  <div class="card" id="econ-table" style="margin-top:var(--cds-gap-md)"><h3>By economic status</h3><p class="muted">Tennessee economic status classes from the workbook. Median × threshold compares the typical A + B award with each county's threshold.</p>
+  <div class="card" id="econ-table" style="margin-top:var(--cds-gap-md)"><h3>By economic status</h3><p class="muted">Tennessee economic status classes. Median × threshold compares the typical total project cost with each county's threshold.</p>
     <div class="tw"><table data-source="econHaz" data-row-key="econ">
-      <thead><tr><th data-field="econ">Status</th><th class="n" data-field="countiesInGroup">Counties</th><th class="n" data-field="designationsPerCounty">Designations / county</th><th class="n" data-field="ealPerCap">$/resident/yr</th><th class="n" data-field="metRate">Met indicator</th><th class="n" data-field="medianMultiple">Median × threshold</th><th class="n" data-field="zeroPA">$0 A+B</th></tr></thead>
+      <thead><tr><th data-field="econ">Status</th><th class="n" data-field="countiesInGroup">Counties</th><th class="n" data-field="designationsPerCounty">Designations / county</th><th class="n" data-field="ealPerCap">$/resident/yr</th><th class="n" data-field="metRate">Met indicator</th><th class="n" data-field="medianMultiple">Median × threshold</th><th class="n" data-field="zeroPA">$0</th></tr></thead>
       <tbody data-draw="econ-rows"></tbody></table></div></div>
 </section>
 
 <section id="hazards">
   <h2>Hazard types and their characteristics</h2>
-  <p class="muted">All hazards side by side; the one picked in the filter is in bold. Every other section follows the hazard filter.</p>
-  <div class="card"><div class="tw"><table data-source="hazards" data-row-key="hazard">
-    <thead><tr><th data-field="hazard">Hazard</th><th class="n" data-field="DR">Major (DR)</th><th class="n" data-field="EM">Emergency (EM)</th><th class="n" data-field="emEscalated">EM → DR</th><th class="n" data-field="medDuration">Median days</th><th class="n" data-field="medDaysToDeclare">Median days to declare</th><th class="n" data-field="medCounties">Median counties</th><th class="n" data-field="medNetAdjPerDR">Median A+B per DR</th><th class="n" data-field="shareA">Cat A share</th><th class="n" data-field="deobRate">Deobligated</th><th class="n" data-field="met">Met / tested</th></tr></thead>
+  <p class="muted">All hazards side by side; the one picked in the filter is in bold. Dollar and threshold columns follow the PA category filter.</p>
+  <div class="card"><div class="tw"><table data-source="hazCat" data-row-key="hazard">
+    <thead><tr><th data-field="hazard">Hazard</th><th class="n" data-field="DR">Major (DR)</th><th class="n" data-field="EM">Emergency (EM)</th><th class="n" data-field="emEscalated">EM → DR</th><th class="n" data-field="medDuration">Median days</th><th class="n" data-field="medDaysToDeclare">Median days to declare</th><th class="n" data-field="medCounties">Median counties</th><th class="n" data-field="medFedAdjPerDR">Median federal share per DR</th><th data-field="topCat">Largest category</th><th class="n" data-field="deobRateAB">Deobligated (A + B)</th><th class="n" data-field="met">Met / tested</th></tr></thead>
     <tbody data-draw="haz-rows"></tbody></table></div>
-    <p class="muted" style="margin-top:var(--cds-gap-sm)">Days to declare runs from incident start to declaration. Cat A share is debris dollars as a share of A + B. FEMA labeled most pre-2020 tornado events "Severe Storm", so tornadoes sit inside that group.</p></div>
+    <p class="muted" style="margin-top:var(--cds-gap-sm)">Days to declare runs from incident start to declaration. Largest category is the share of federal dollars in the selected categories. FEMA labeled most pre-2020 tornado events "Severe Storm", so tornadoes sit inside that group.</p></div>
 </section>
 
 <section id="thresholds">
-  <h2>Per capita threshold: who got there on A + B alone</h2>
-  <p class="muted">Each dot is one county designation (FY2002 on). Above the line, net Cat A + B obligations alone were at least the countywide indicator × population. Log scale.</p>
-  <div class="card"><div class="legend" data-source="designations"><span><i class="sw" style="background:var(--cds-chart-status-critical)"></i>Met with A + B</span><span><i class="sw" style="background:var(--cds-chart-muted)"></i>Below with A + B</span></div><div class="chart tall" data-draw="thr-dots" data-source="designations"></div></div>
+  <h2>Per capita threshold: who got there</h2>
+  <p class="muted">Each dot is one county designation (FY2002 on). Above the line, the total project cost in the selected categories was at least the countywide indicator × population. Log scale. The selected county's dots are larger and outlined.</p>
+  <div class="card"><div class="legend" data-source="desigSel"><span><i class="sw" style="background:var(--cds-chart-status-critical)"></i>Met</span><span><i class="sw" style="background:var(--cds-chart-muted)"></i>Below</span></div><div class="chart tall" data-draw="thr-dots" data-source="desigSel"></div></div>
 </section>
 
 <section id="disasters">
-  <h2>Declarations: duration, escalation, A vs. B, deobligation</h2>
-  <div class="card" id="ab-chart"><h3>Cat A vs. Cat B by major disaster</h3><p class="muted">Net federal share, $ millions, natural hazards</p><div class="legend" data-source="disasters"><span><i class="sw" data-sw="0"></i>Cat A, debris</span><span><i class="sw" data-sw="1"></i>Cat B, emergency protective measures</span></div><div class="chart tall" data-draw="ab-bars" data-source="disasters"></div></div>
+  <h2>Declarations: duration, escalation, PA categories, deobligation</h2>
+  <div class="card" id="ab-chart"><h3>PA by category, per major disaster</h3><p class="muted">Federal share obligated, $ millions, natural hazards, county and statewide applicants</p><div class="legend" data-draw="cat-legend" data-source="disSel"></div><div class="chart tall" data-draw="ab-bars" data-source="disSel"></div></div>
   <div class="card" id="dis-table" style="margin-top:var(--cds-gap-md)"><h3>Every declaration since 1999</h3>
-    <div class="tw tall-table"><table data-source="disasters" data-row-key="disasterNumber">
-      <thead><tr><th data-field="disasterNumber">#</th><th data-field="type">Type</th><th data-field="declDate">Declared</th><th data-field="hazard">Hazard</th><th class="n" data-field="durationDays">Days</th><th class="n" data-field="daysToDeclare">Days to declare</th><th class="n" data-field="nCounties">Counties</th><th data-field="escalatedTo">Became DR</th><th class="n" data-field="net">Net A + B</th><th data-field="dominant">Dominant</th><th class="n" data-field="deobRate">Deobligated</th><th class="n" data-field="cMet">Counties met</th><th class="n" data-field="cZero">$0 A+B</th><th data-field="nonHazard">Excluded as</th></tr></thead>
+    <div class="tw tall-table"><table data-source="disSel" data-row-key="disasterNumber">
+      <thead><tr><th data-field="disasterNumber">#</th><th data-field="type">Type</th><th data-field="declDate">Declared</th><th data-field="hazard">Hazard</th><th class="n" data-field="durationDays">Days</th><th class="n" data-field="daysToDeclare">Days to declare</th><th class="n" data-field="nCounties">Counties</th><th data-field="escalatedTo">Became DR</th><th class="n" data-field="fed">Federal share</th><th data-field="topCat">Largest category</th><th class="n" data-field="deobRateAB">Deobligated (A + B)</th><th class="n" data-field="cMet">Counties met</th><th class="n" data-field="cZero">$0</th><th class="n" data-field="daN">Damage assessments</th><th data-field="nonHazard">Excluded as</th></tr></thead>
       <tbody data-draw="dis-rows"></tbody></table></div></div>
 </section>
 
 <section id="trend">
-  <h2>Trend, adjusted to FY2026 dollars</h2>
+  <h2>Trend, adjusted to <span data-draw="base-fy">—</span> dollars</h2>
   <p class="muted">Adjusted with FEMA's countywide indicator, which FEMA indexes to CPI-U each year. FY1999–FY2001 stay in nominal dollars because their county indicator values weren't verified.</p>
   <div class="grid">
-    <div class="card" id="trend-dollars"><h3>Net Cat A + B by declaration year</h3><p class="muted">$ millions, FY2026 dollars, natural-hazard majors</p><div class="chart" data-draw="tr-dollars" data-source="trendHaz"></div></div>
+    <div class="card" id="trend-dollars"><h3>Federal share by declaration year</h3><p class="muted">$ millions, <span data-draw="base-fy">—</span> dollars, natural-hazard majors, selected categories</p><div class="chart" data-draw="tr-dollars" data-source="trendHaz"></div></div>
     <div class="card" id="trend-counties"><h3>County designations by year</h3><div class="chart" data-draw="tr-counties" data-source="trendHaz"></div></div>
   </div>
+</section>
+
+<section id="damage">
+  <h2>Damage assessments</h2>
+  <p data-draw="da-status" class="muted">—</p>
+  <p class="muted">Field damage assessments from ArcGIS, loaded live after sign-in. Training records and deleted records are removed. Each assessment's mission is linked to a FEMA declaration through the mission number list; the hazard filter uses that declaration's hazard, or the recorded event type (tornado, flood) when the mission isn't linked. Assessment records only go back as far as the ArcGIS layer does, so older declarations have none.</p>
+  <div class="kpis" style="margin-top:var(--cds-gap-sm)">
+    <div class="card kpi"><div class="l">Assessments</div><div class="v" data-draw="da-k-total" data-source="daKpi">—</div><div class="l" data-draw="da-k-span" data-source="daKpi">—</div></div>
+    <div class="card kpi"><div class="l">Destroyed</div><div class="v" data-draw="da-k-destroyed" data-source="daKpi">—</div><div class="l">Major: <span data-draw="da-k-major" data-source="daKpi">—</span></div></div>
+    <div class="card kpi"><div class="l">Minor</div><div class="v" data-draw="da-k-minor" data-source="daKpi">—</div><div class="l">Affected: <span data-draw="da-k-affected" data-source="daKpi">—</span> · Inaccessible: <span data-draw="da-k-inaccessible" data-source="daKpi">—</span></div></div>
+    <div class="card kpi"><div class="l">Insured (yes or partial)</div><div class="v" data-draw="da-k-insured" data-source="daKpi">—</div><div class="l">Of <span data-draw="da-k-insured-n" data-source="daKpi">—</span> with an answer</div></div>
+    <div class="card kpi"><div class="l">In a FEMA flood zone (A or V)</div><div class="v" data-draw="da-k-sfha" data-source="daKpi">—</div><div class="l">Of <span data-draw="da-k-sfha-n" data-source="daKpi">—</span> with a zone recorded</div></div>
+  </div>
+  <div class="grid" style="margin-top:var(--cds-gap-md)">
+    <div class="card" id="da-county"><h3>Damage level by county</h3><p class="muted">Top 20 counties by destroyed + major. Click a bar to load the county.</p><div class="legend" data-draw="da-level-legend"></div><div class="chart tall" data-draw="da-county-bars" data-source="daCounty"></div></div>
+    <div class="card" id="da-dwelling-card"><h3>Structure type</h3><p class="muted">Assessments by dwelling type</p><div class="chart" data-draw="da-dwelling" data-source="daDwelling"></div></div>
+  </div>
+  <div class="card" id="da-missions" style="margin-top:var(--cds-gap-md)"><h3>By mission</h3><p class="muted">Click a row to filter the dashboard's damage assessments to that mission; click it again to clear.</p>
+    <div class="tw tall-table"><table data-source="daMissions" data-row-key="missionKey">
+      <thead><tr><th data-field="mission">Mission</th><th data-field="declaration">Declaration</th><th data-field="hazard">Hazard</th><th data-field="first">Assessed</th><th class="n" data-field="counties">Counties</th><th class="n" data-field="total">Total</th><th class="n" data-field="Destroyed">Destroyed</th><th class="n" data-field="Major">Major</th><th class="n" data-field="Minor">Minor</th><th class="n" data-field="Affected">Affected</th><th class="n" data-field="Inaccessible">Inaccessible</th></tr></thead>
+      <tbody data-draw="da-mission-rows"></tbody></table></div></div>
 </section>
 
 <section id="gaps">
   <h2>Gaps</h2>
   <div class="grid">
-    <div class="card" id="gap-never"><h3>Never met the indicator on A + B alone</h3><p class="muted"><span data-draw="g-never-n" data-source="neverMetCount">—</span> counties designated for the selected hazard. Candidates for a closer look at damage assessments and categories C–G.</p>
-      <div class="tw tall-table"><table data-source="neverMetHaz" data-row-key="county"><thead><tr><th data-field="county">County</th><th data-field="region">Region</th><th data-field="econ">Status</th><th class="n" data-field="paDR">PA majors</th><th class="n" data-field="maxMultiple">Best × threshold</th><th class="n" data-field="zeroPA">$0 A+B</th></tr></thead><tbody data-draw="g-never-rows"></tbody></table></div></div>
-    <div class="card" id="gap-em"><h3>In an emergency declaration, left out of the major</h3><p class="muted"><span data-draw="g-em-n" data-source="emNotCarriedCount">—</span> county designations. All are from the April 2025 storms.</p>
+    <div class="card" id="gap-never"><h3>Never met the indicator</h3><p class="muted"><span data-draw="g-never-n" data-source="neverMetCount">—</span> counties designated for the selected hazard where the total project cost in the selected categories never reached the countywide indicator.</p>
+      <div class="tw tall-table"><table data-source="neverMetHaz" data-row-key="county"><thead><tr><th data-field="county">County</th><th data-field="region">Region</th><th data-field="econ">Status</th><th class="n" data-field="paDR">PA majors</th><th class="n" data-field="maxMultiple">Best × threshold</th><th class="n" data-field="zeroPA">$0</th></tr></thead><tbody data-draw="g-never-rows"></tbody></table></div></div>
+    <div class="card" id="gap-em"><h3>In an emergency declaration, left out of the major</h3><p class="muted"><span data-draw="g-em-n" data-source="emNotCarriedCount">—</span> county designations.</p>
       <div class="tw tall-table"><table data-source="emNotCarried" data-row-key="county"><thead><tr><th data-field="county">County</th><th data-field="region">Region</th><th data-field="em">EM</th><th data-field="dr">DR</th></tr></thead><tbody data-draw="g-em-rows"></tbody></table></div></div>
   </div>
-  <div class="card note" style="margin-top:var(--cds-gap-md)"><h3>Gaps this data can't show yet</h3><p class="muted">Events with damage but no declaration, counties whose preliminary damage assessment met the threshold but were left out, and county resource requests to the state. Adding damage assessment records and resource requests would fill these in, and would let the model learn from events that didn't escalate.</p></div>
+  <div class="card note" style="margin-top:var(--cds-gap-md)"><h3>Gaps this data can't show yet</h3><p class="muted">Events with damage but no declaration, counties whose preliminary damage assessment met the threshold but were left out, and county resource requests to the state. The damage assessments above are structure counts, not PA dollar estimates, so they can't be tested against the per capita indicator. Adding PA damage estimates and resource requests would fill these in.</p></div>
 </section>
 
 <details id="method" class="card">
   <summary>How this was worked out, and what to keep in mind</summary>
   <ul>
-    <li><b>Data.</b> FEMA declaration and Public Assistance project records from the GRRF workbook. Only categories A and B are included, so totals are a floor on PA, not the full award.</li>
-    <li><b>Window.</b> Declarations from January 1999, when the workbook's PA project records start, through November 18, 2026.</li>
-    <li><b>Net, gross, deobligated.</b> Each project version is a row. Positive versions add up to gross obligations, negative versions to deobligations, and the sum of all versions is net.</li>
-    <li><b>Threshold.</b> FEMA countywide per capita indicator for the fiscal year × 2020 census population. Indicator values come from FEMA's published table (FY2004–FY2025), Federal Register notices (FY2002, FY2003, FY2027) and FEMA's FY2026 notice. From FY2026, the indicator applies by incident start date. FEMA used older census counts for earlier years, so older multiples are approximate.</li>
+    <li><b>Data.</b> FEMA Disaster Declarations Summaries and Public Assistance Funded Projects Details from OpenFEMA, Tennessee rows only: <span data-draw="src-text">—</span>. Damage assessments load live from ArcGIS after sign-in.</li>
+    <li><b>Window.</b> Declarations from <span data-draw="window-text">—</span>. The end date is the latest OpenFEMA refresh date in the files.</li>
+    <li><b>PA categories.</b> A debris removal, B emergency protective measures, C roads and bridges, D water control facilities, E buildings and equipment, F utilities, G parks, recreational and other, Z management costs. The default is A–G; Z isn't a damage category.</li>
+    <li><b>Dollars.</b> Federal share = federal share obligated per project. Total project cost = FEMA's estimated total cost of the project (federal and non-federal). Projects are counted in the county on the project record; when that's blank, the county comes from the applicant ID, which starts with the county FIPS code. Statewide (state agency) projects count toward declaration totals but not county measures.</li>
+    <li><b>Deobligations.</b> The OpenFEMA project file holds each project's current obligation, not its history, so deobligations still come from the GRRF workbook and cover Categories A and B only.</li>
+    <li><b>Threshold.</b> FEMA countywide per capita indicator for the fiscal year × 2020 census population, compared with total project cost, because FEMA's indicator measures federal and non-federal cost. Indicator values come from FEMA's published table (FY2004–FY2025), Federal Register notices (FY2002, FY2003, FY2027) and FEMA's FY2026 notice. From FY2026, the indicator applies by incident start date. FEMA used older census counts for earlier years, so older multiples are approximate.</li>
     <li><b>Five-year chance.</b> 1 − e<sup>−5λ</sup>, where λ is the county's PA major-disaster designations per year since 1999.</li>
     <li><b>Escalation.</b> An emergency declaration counts as escalated when a major declaration shares its incident ID, or covers an overlapping incident period within 120 days and shares counties.</li>
-    <li><b>$0 in A + B.</b> Counties designated for PA with no net A or B dollars. They may have had projects in categories C–G. Declarations under 2 years old are left out because obligations are still being written.</li>
-    <li><b>Hazard filter.</b> Scores, chances and dollars are worked out again on the page from the county designations for the hazard picked. "Emergency declaration, left out of the major" stays all hazards.</li>
-    <li><b>Map.</b> County boundaries are U.S. Census county outlines (via the plotly/datasets GeoJSON), matched to the workbook's county names.</li>
-    <li><b>County of applicant.</b> 14 applicants had no county in the source and were assigned to their home county. Two out-of-state applicants stay unassigned.</li>
+    <li><b>$0 in these categories.</b> Counties designated for PA with no federal share in the selected categories. Declarations under 2 years old are left out because obligations are still being written.</li>
+    <li><b>Filters.</b> Scores, chances and dollars are worked out again on the page for the hazard and categories picked. "Emergency declaration, left out of the major" stays all hazards.</li>
+    <li><b>Damage assessments.</b> Records marked Training, mission #999 (the training mission number) and soft-deleted records are removed. A mission is identified by its year and number and linked to a declaration through the mission number list; links marked "Possibly" are shown as unverified.</li>
+    <li><b>Map.</b> County boundaries are U.S. Census county outlines (via the plotly/datasets GeoJSON).</li>
   </ul>
 </details>
 </div>
@@ -271,6 +318,7 @@ body{margin:0;padding:24px clamp(12px,3vw,40px) 48px;max-width:1280px;margin-inl
 <script src="js/rk.js"></script>
 <script src="js/calcs.js"></script>
 <script src="js/draws.js"></script>
+<script src="js/da.js"></script>
 <script src="js/auth.js"></script>
 </body>
 </html>

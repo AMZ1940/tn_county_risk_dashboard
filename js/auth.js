@@ -8,7 +8,7 @@
 
   /* ------------------------------------------------------------------ CONFIG */
   const CONFIG = {
-    CLIENT_ID: "SOme9Mv9P4kEIzH9",
+    CLIENT_ID: "w9VaoRCHch2gIU1d",
     PORTAL_URL: "https://www.arcgis.com"   // change to https://<your-org>.maps.arcgis.com or your Enterprise portal if needed
   };
 
@@ -27,6 +27,7 @@
     $("app").hidden = false;
     $("userName").textContent = userLabel;
     window.dash.start();   // load the data and draw (charts size to the now-visible page)
+    if (window.DA) window.DA.load();   // damage assessments from ArcGIS (js/da.js)
   }
 
   function startAuth() {

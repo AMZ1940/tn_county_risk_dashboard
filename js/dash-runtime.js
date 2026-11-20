@@ -18,13 +18,15 @@
     hazards: 'data/hazards.json',
     emNotCarried: 'data/emNotCarried.json',
     tnCounties: 'data/tnCounties.json',
+    meta: 'data/meta.json',
+    missions: 'data/missions.json',
   };
 
   const store = {};        // name -> { status, data }
   const calcs = [];        // { name, inputs, fn }
   const draws = new Map(); // name -> fn
   // only these keys are filters; anything else in the URL hash (e.g. an OAuth response) is ignored
-  const PARAM_KEYS = ['hazard', 'county', 'mapMetric'];
+  const PARAM_KEYS = ['hazard', 'county', 'mapMetric', 'cats', 'daMission'];
   let params = readHash();
 
   function readHash() {
@@ -106,6 +108,8 @@
     document.head.appendChild(sc);
   };
   window.dash.redraw = render;
+  // for data loaded by other scripts (e.g. damage assessments from ArcGIS in js/da.js)
+  window.dash.setData = function (name, status, data, message) { store[name] = { status, data, message }; render(); };
 
   // keep filters in step with back/forward and pasted links
   window.addEventListener('hashchange', () => {
