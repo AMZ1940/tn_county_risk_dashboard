@@ -8,7 +8,7 @@
 (function () {
   "use strict";
   const CONFIG = {
-    DA_LAYER_URL: "",              // e.g. "https://services.arcgis.com/<org id>/arcgis/rest/services/<service>/FeatureServer/0"
+    DA_LAYER_URL: "https://services1.arcgis.com/kILp9lqGUeOhnDbI/arcgis/rest/services/survey123_2c3e3f6ad4a24e10b9fae340ba702624_results/FeatureServer",              // e.g. "https://services.arcgis.com/<org id>/arcgis/rest/services/<service>/FeatureServer/0"
     TRAINING_MISSION_NUMBER: 999,  // mission number used for training exercises
     // logical field -> aliases or names to look for (first match wins)
     FIELDS: {
