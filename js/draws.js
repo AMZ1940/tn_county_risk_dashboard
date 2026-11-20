@@ -1,5 +1,5 @@
 const RK = window.RK;
-const HAZ = () => dash.params().hazard || '';
+const HAZ = () => HZ();   // hazard filter, or the linked event's hazard
 const META = () => dash.data('meta').data || {};
 const CAT_NAME = { A: 'Debris removal', B: 'Emergency protective measures', C: 'Roads and bridges', D: 'Water control facilities',
   E: 'Buildings and equipment', F: 'Utilities', G: 'Parks, recreational and other', Z: 'Management costs' };
@@ -41,7 +41,23 @@ document.querySelectorAll('.rk [data-reset]').forEach((b) => b.addEventListener(
   document.querySelectorAll('.rk [data-ctl]').forEach((sel) => { sel.value = sel.dataset.default || ''; });
   syncCatBoxes();
 }));
-dash.draw('haz-label', (el) => { el.textContent = HAZ() || 'All natural hazards'; });
+dash.draw('haz-label', (el) => { const e = EVENT(); el.textContent = e ? `${e.type}-${e.disasterNumber} (${e.hazard})` : (HAZ() || 'All natural hazards'); });
+dash.draw('event-banner', (el) => {
+  const e = EVENT(), k = dash.params().daMission;
+  const hz = document.querySelector('.rk [data-ctl="hazard"]');
+  document.querySelectorAll('.rk [data-ctl]').forEach((c) => { if (c.dataset.ctl !== 'hazard') c.value = dash.params()[c.dataset.ctl] || c.dataset.default || ''; });
+  if (hz) { hz.disabled = !!e; hz.value = e ? e.hazard : (dash.params().hazard || ''); hz.title = e ? 'Set by the linked declaration; clear the mission to change it' : ''; }
+  el.replaceChildren();
+  if (!k) { el.hidden = true; return; }
+  el.hidden = false;
+  const clear = document.createElement('button'); clear.type = 'button'; clear.className = 'btn sm'; clear.textContent = 'Clear mission';
+  clear.onclick = () => { const p = { daMission: null }; if ((dash.params().mapMetric || '').startsWith('ev')) p.mapMetric = null; dash.setParams(p); };
+  const [yr, num] = k.split('-');
+  const t = document.createElement('span');
+  t.textContent = e ? `Following ${yr} Mission #${num} → ${e.type}-${e.disasterNumber}, ${titleCase(e.title)} (${e.hazard})${e.verified ? '' : ' — link unverified'}. Hazard, PA figures and declaration views are narrowed to this event; county scores stay historical for its hazard.`
+    : `${yr} Mission #${num} isn't linked to a declaration in the mission list, so only the damage assessments are filtered.`;
+  el.append(t, ' ', clear);
+});
 dash.draw('cat-label', (el) => { el.textContent = catText(); });
 dash.draw('cat-label-lc', (el) => { el.textContent = catText().replace(/^C/, 'c'); });
 dash.draw('as-of', (el) => { const m = META(); el.textContent = m.asOf ? RK.date(m.asOf) : '—'; });
@@ -49,20 +65,39 @@ dash.draw('window-text', (el) => { const m = META(); el.textContent = m.asOf ? `
 dash.draw('base-fy', (el) => { el.textContent = META().baseFY ? `FY${META().baseFY}` : 'FY2026'; });
 dash.draw('src-text', (el) => { const s = META().sources; el.textContent = s ? `${s.declarations.file} (refreshed ${RK.date(s.declarations.lastRefresh)}) and ${s.pa.file} (refreshed ${RK.date(s.pa.lastRefresh)}); built ${META().built}` : '—'; });
 
-// ---- headline and statewide figures
+// ---- headline and statewide figures (follow the hazard, categories and linked event)
 const swRow = () => (dash.data('regionHaz').data || []).find((r) => r.region === 'Statewide') || {};
-dash.draw('sw-desig', (el) => RK.set(el, 'regionHaz', () => RK.num(swRow().designations)));
-dash.draw('sw-met', (el) => RK.set(el, 'regionHaz', () => RK.num(swRow().met)));
-dash.draw('sw-tested', (el) => RK.set(el, 'regionHaz', () => RK.num(swRow().tested)));
-dash.draw('sw-haz', (el) => { el.textContent = HAZ() ? HAZ().toLowerCase() : 'natural-hazard'; });
-dash.draw('top-county', (el) => RK.set(el, 'countyHaz', () => ((dash.data('countyHaz').data || [])[0] || {}).county || '—'));
-dash.draw('k-desig', (el) => RK.set(el, 'regionHaz', () => RK.num(swRow().designations)));
-dash.draw('k-net', (el) => RK.set(el, 'regionHaz', () => RK.money(swRow().fedAdj)));
-dash.draw('k-eal', (el) => RK.set(el, 'regionHaz', () => RK.money2(swRow().ealPerCap)));
-dash.draw('k-deob', (el) => RK.set(el, 'regionHaz', () => RK.money(swRow().deobAB)));
-dash.draw('k-deobrate', (el) => RK.set(el, 'regionHaz', () => RK.pct(swRow().deobRateAB, 1)));
-dash.draw('k-zero', (el) => RK.set(el, 'regionHaz', () => RK.num(swRow().zeroPA)));
-dash.draw('k-statewide', (el) => { const b = META().paBuckets; el.textContent = b ? RK.money(b.statewide) : '—'; });
+const sw = () => (dash.data('swSel').data || [])[0] || {};
+const evLabel = (e) => `${e.type}-${e.disasterNumber}`;
+const titleCase = (t) => String(t || '').toLowerCase().replace(/\b([a-z])/g, (m) => m.toUpperCase()).replace(/\b(And|Of|The|In)\b/g, (w) => w.toLowerCase());
+dash.draw('takeaway', (el) => {
+  if (dash.data('swSel').status !== 'ok' || dash.data('countyHaz').status !== 'ok') { el.textContent = '—'; return; }
+  const e = EVENT(), x = sw(), b = (t) => { const n = document.createElement('b'); n.textContent = t; return n; };
+  if (e) {
+    const top = (dash.data('eventCounties').data || []).find((r) => r.thresholdMultiple != null);
+    el.replaceChildren(`${evLabel(e)} (${titleCase(e.title)}, declared ${RK.date(e.declDate)}) designated `, b(RK.num(x.designations)), ' counties for PA. The total project cost in ',
+      catText().replace(/^C/, 'c'), ' met the countywide per capita indicator in ', b(RK.num(x.met)), ' of ', b(RK.num(x.tested)), ' tested counties',
+      ...(top ? ['; ', b(top.county), ` was highest at ${d3.format('.1f')(top.thresholdMultiple)}× its threshold.`] : ['.']));
+    return;
+  }
+  el.replaceChildren('Across ', b(RK.num(x.designations)), ` county designations for ${HAZ() ? HAZ().toLowerCase() : 'natural-hazard'} major disasters, the total project cost in `,
+    catText().replace(/^C/, 'c'), ' met the countywide per capita indicator in ', b(RK.num(x.met)), ' of ', b(RK.num(x.tested)), ' tested designations. ',
+    b(((dash.data('countyHaz').data || [])[0] || {}).county || '—'), ' ranks highest on the history-based score.');
+});
+dash.draw('k-desig', (el) => RK.set(el, 'swSel', () => RK.num(sw().designations)));
+dash.draw('k-desig-sub', (el) => { const e = EVENT(); el.textContent = e ? `${evLabel(e)}, declared ${RK.date(e.declDate)}` : 'Since Jan 1999'; });
+dash.draw('k-net', (el) => RK.set(el, 'swSel', () => RK.money(EVENT() ? sw().fed : sw().fedAdj)));
+dash.draw('k-net-label', (el) => { el.textContent = EVENT() ? `Federal share obligated, ${evLabel(EVENT())}` : `Federal share obligated, FY${META().baseFY || 2026} $`; });
+dash.draw('k-eal', (el) => RK.set(el, 'swSel', () => RK.money2(EVENT() ? sw().perResident : sw().ealPerCap)));
+dash.draw('k-eal-label', (el) => { el.textContent = EVENT() ? 'Federal share per Tennessee resident' : 'Expected federal share per resident per year'; });
+dash.draw('k-eal-sub', (el) => { el.textContent = EVENT() ? `${evLabel(EVENT())}, nominal $` : `Statewide, FY${META().baseFY || 2026} $`; });
+dash.draw('k-deob', (el) => RK.set(el, 'swSel', () => RK.money(sw().deobAB)));
+dash.draw('k-deobrate', (el) => RK.set(el, 'swSel', () => RK.pct(sw().deobRateAB, 1)));
+dash.draw('k-zero', (el) => RK.set(el, 'swSel', () => RK.num(sw().zeroPA)));
+dash.draw('k-statewide', (el) => {
+  const e = EVENT(); if (e) { const d = (dash.data('disSel').data || [])[0]; el.textContent = d ? RK.money(d.statewideFed) : '—'; return; }
+  const b = META().paBuckets; el.textContent = b ? RK.money(b.statewide) : '—';
+});
 dash.draw('c-eal-sw', (el) => RK.set(el, 'regionHaz', () => RK.money2(swRow().ealPerCap)));
 
 // ---- county map (choropleth + click to pick a county)
@@ -75,20 +110,24 @@ const MAP_METRICS = {
   met: { label: 'Times the indicator was met', value: (r) => r.met, fmt: (v) => RK.num(v) },
   daSevere: { label: 'Destroyed + major (damage assessments)', da: true, value: (r) => r.daSevere, fmt: (v) => RK.num(v) },
   daTotal: { label: 'Damage assessments', da: true, value: (r) => r.daTotal, fmt: (v) => RK.num(v) },
+  evMult: { label: 'Total project cost × threshold (this event)', ev: true, value: (r) => r.evMult, fmt: (v) => v == null ? '—' : `${d3.format('.2f')(v)}×` },
+  evFed: { label: 'Federal share (this event)', ev: true, value: (r) => r.evFed, fmt: RK.money },
 };
 dash.draw('tn-map', (el) => {
   const g = dash.data('tnCounties'), c = dash.data('countyHaz');
   if (g.status !== 'ok' || c.status !== 'ok') { RK.status(el, g.status !== 'ok' ? 'tnCounties' : 'countyHaz'); return; }
   const M = MAP_METRICS[dash.params().mapMetric] || MAP_METRICS.score;
   if (M.da && dash.data('daCounty').status !== 'ok') { muted(el, dash.data('damageAssessments').message || 'Damage assessments are loading…'); return; }
+  if (M.ev && !EVENT()) { muted(el, 'Pick a damage assessment mission that is linked to a declaration to shade the map by that event.'); return; }
+  const ev = new Map((dash.data('eventCounties').data || []).map((r) => [r.county, r]));
   el.classList.remove('dash-skeleton'); el.replaceChildren();
   const da = daCountyMap();
-  const rows = new Map(c.data.map((r) => { const d = da.get(r.county) || {}; return [r.county, { ...r, daSevere: d.severe || 0, daTotal: d.total || 0 }]; }));
+  const rows = new Map(c.data.map((r) => { const d = da.get(r.county) || {}; const x = ev.get(r.county); return [r.county, { ...r, daSevere: d.severe || 0, daTotal: d.total || 0, evMult: x ? x.thresholdMultiple : null, evFed: x ? x.fed : null }]; }));
   const sel = dash.params().county || (c.data[0] && c.data[0].county);
   const W = el.clientWidth || 600, H = Math.max(160, Math.round(W * 0.34));
   const proj = d3.geoMercator().fitExtent([[4, 4], [W - 4, H - 4]], g.data), path = d3.geoPath(proj);
   const allVals = [...rows.values()].map(M.value);
-  const vals = M.da ? allVals.filter((v) => v > 0) : allVals;   // counties with no assessments get their own faint class
+  const vals = M.da ? allVals.filter((v) => v > 0) : M.ev ? allVals.filter((v) => v != null) : allVals;   // counties with no assessments get their own faint class
   if (!vals.length) vals.push(0);
   const steps = [0.12, 0.3, 0.5, 0.72, 0.95];
   const q = d3.scaleQuantile().domain(vals).range(steps);
@@ -99,7 +138,7 @@ dash.draw('tn-map', (el) => {
   svg.append('g').selectAll('path').data(feats).join('path')
     .attr('d', path).attr('tabindex', 0).attr('role', 'button').attr('aria-label', (f) => f.properties.county)
     .style('cursor', 'pointer').style('fill', RK.sw(0))
-    .style('fill-opacity', (f) => { const r = rows.get(f.properties.county); return r ? (M.da && !M.value(r) ? 0.03 : q(M.value(r))) : 0.05; })
+    .style('fill-opacity', (f) => { const r = rows.get(f.properties.county); return r ? ((M.da && !M.value(r)) || (M.ev && M.value(r) == null) ? 0.03 : q(M.value(r))) : 0.05; })
     .style('stroke', (f) => f.properties.county === sel ? 'var(--color-fg)' : 'var(--cds-chart-axis)')
     .style('stroke-width', (f) => f.properties.county === sel ? 2.2 : 0.5)
     .on('pointermove', (ev, f) => { const r = rows.get(f.properties.county) || {};
@@ -117,7 +156,7 @@ dash.draw('tn-map', (el) => {
     sw.style.background = RK.sw(0); sw.style.opacity = s; span.appendChild(sw);
     span.appendChild(document.createTextNode(`${M.fmt(edges[i])}–${M.fmt(edges[i + 1])}`)); leg.appendChild(span);
   });
-  if (M.da) { const z = document.createElement('span'); const zi = document.createElement('i'); zi.className = 'sw'; zi.style.background = RK.sw(0); zi.style.opacity = 0.03; zi.style.border = '1px solid var(--cds-chart-axis)'; z.append(zi, 'None'); leg.prepend(z); }
+  if (M.da || M.ev) { const z = document.createElement('span'); const zi = document.createElement('i'); zi.className = 'sw'; zi.style.background = RK.sw(0); zi.style.opacity = 0.03; zi.style.border = '1px solid var(--cds-chart-axis)'; z.append(zi, M.ev ? 'Not designated' : 'None'); leg.prepend(z); }
   const selSpan = document.createElement('span'); const ring = document.createElement('i'); ring.className = 'sw';
   ring.style.border = '2px solid var(--color-fg)'; ring.style.background = 'transparent'; selSpan.appendChild(ring);
   selSpan.appendChild(document.createTextNode(`Selected: ${sel || '—'}`)); leg.appendChild(selSpan);
@@ -316,7 +355,13 @@ dash.draw('da-mission-select', (sel) => {
   if (m.status === 'ok') m.data.forEach((r) => opts.push(new Option(`${r.year} Mission #${r.mission}${r.declaration ? ` (${r.declaration})` : ''}`, r.missionKey)));
   sel.replaceChildren(...opts);
   sel.value = dash.params().daMission || '';
-  sel.onchange = () => dash.setParams({ daMission: sel.value || null });
+  sel.onchange = () => {
+    const v = sel.value || null; const linked = v && (dash.data('missions').data || []).some((m) => `${m.year}-${m.missionNumber}` === v && m.type === 'DR');
+    const mm = dash.params().mapMetric || '';
+    const p = { daMission: v };
+    if (linked) { p.hazard = null; if (!mm || mm === 'score') p.mapMetric = 'evMult'; } else if (mm.startsWith('ev')) p.mapMetric = null;
+    dash.setParams(p);
+  };
 });
 ['total', 'Destroyed', 'Major', 'Minor', 'Affected', 'Inaccessible'].forEach((k) => dash.draw(`da-k-${k.toLowerCase()}`, (el) => daSet(el, 'daKpi', () => RK.num(kpi()[k]))));
 dash.draw('da-k-insured', (el) => daSet(el, 'daKpi', () => kpi().insuredKnown ? RK.pct(kpi().insuredYes / kpi().insuredKnown) : '—'));
@@ -350,5 +395,28 @@ dash.draw('da-mission-rows', (tb) => {
     [(r) => r.declaration ? `${r.declaration}${r.linkVerified === false ? ' (unverified)' : ''}` : 'Not linked'], [(r) => r.hazard || '—'],
     [(r) => `${RK.date(r.first)} – ${RK.date(r.last)}`], [(r) => RK.num(r.counties), 'n'], [(r) => RK.num(r.total), 'n'],
     ...DA_LEVELS.map((l) => [(r) => RK.num(r[l]), 'n'])]);
-  tb.querySelectorAll('tr').forEach((tr) => { tr.style.cursor = 'pointer'; tr.addEventListener('click', () => dash.setParams({ daMission: tr.dataset.key === pickM ? null : tr.dataset.key })); });
+  tb.querySelectorAll('tr').forEach((tr) => { tr.style.cursor = 'pointer'; tr.addEventListener('click', () => {
+    const sel = document.querySelector('.rk [data-draw="da-mission-select"]');
+    if (sel) { sel.value = tr.dataset.key === pickM ? '' : tr.dataset.key; sel.onchange(); }
+  }); });
+});
+
+// ---- linked event (shown when the picked mission is linked to a declaration)
+dash.draw('event-section', (el) => { el.hidden = !EVENT(); });
+dash.draw('ev-title', (el) => { const e = EVENT(); el.textContent = e ? `${e.type}-${e.disasterNumber}: ${titleCase(e.title)}` : ''; });
+dash.draw('ev-facts', (el) => {
+  const e = EVENT(); if (!e) { el.textContent = ''; return; }
+  const d = (dash.data('disSel').data || [])[0] || {};
+  el.textContent = `${e.hazard}. Incident ${RK.date(e.begin)}${e.end ? ` – ${RK.date(e.end)}` : ''}, declared ${RK.date(e.declDate)}. ${RK.num(e.nCounties)} counties designated. `
+    + `Federal share obligated in ${catText().replace(/^C/, 'c')}: ${RK.full(d.fed)} (county and statewide applicants), largest category ${d.topCat ? `${d.topCat} at ${RK.pct(d.topShare)}` : '—'}. Linked through ${e.missionLabel}${e.verified ? '' : ' (unverified)'}.`;
+});
+dash.draw('ev-rows', (tb) => {
+  if (!EVENT() || !RK.ok('eventCounties')) { tb.replaceChildren(); return; }
+  const da = daCountyMap(), sel = dash.params().county;
+  RK.rowsInto(tb, dash.data('eventCounties').data, 'county', [
+    [(r) => r.county, '', (td, r) => { if (r.county === sel) td.style.fontWeight = '700'; }], [(r) => r.region], [(r) => RK.full(r.fed), 'n'], [(r) => RK.full(r.amt), 'n'],
+    [(r) => RK.full(r.threshold), 'n'], [(r) => r.thresholdMultiple == null ? '—' : `${d3.format('.2f')(r.thresholdMultiple)}×`, 'n', (td, r) => { if (r.metThreshold === 1) td.className = 'n bad'; }],
+    [(r) => r.topCat ? `${r.topCat} (${RK.pct(r.topShare)})` : '—'],
+    [(r) => { const d = da.get(r.county); return d ? RK.num(d.total) : '—'; }, 'n'], [(r) => { const d = da.get(r.county); return d ? RK.num(d.severe) : '—'; }, 'n']]);
+  tb.querySelectorAll('tr').forEach((tr) => { tr.style.cursor = 'pointer'; tr.addEventListener('click', () => dash.setParams({ county: tr.dataset.key })); });
 });

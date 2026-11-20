@@ -1,11 +1,26 @@
 // Calculations. Everything here re-computes for the filters in the filter bar:
 //   hazard (""= all natural hazards), PA categories (cats), damage assessment mission (daMission).
-const HZ = () => dash.params().hazard || '';
+// When the damage assessment mission picked is linked to a declaration, the dashboard follows that event:
+// its hazard drives the hazard filter, and PA figures, KPIs and the declaration views narrow to it.
+const EVENT = () => ((dash.data('eventSel').data) || [])[0] || null;
+const HZ = () => { const e = EVENT(); return e && e.hazard ? e.hazard : (dash.params().hazard || ''); };
 const ALL_CATS = 'ABCDEFGZ'.split('');
 const DEFAULT_CATS = 'ABCDEFG';
 const selCats = () => { const c = (dash.params().cats || DEFAULT_CATS).toUpperCase().split('').filter((x) => ALL_CATS.includes(x)); return c.length ? c : DEFAULT_CATS.split(''); };
 const sumCats = (r, pre, cats) => cats.reduce((s, c) => s + (r[`${pre}_${c}`] || 0), 0);
 const topCat = (r, cats) => { let best = null, v = 0, tot = 0; cats.forEach((c) => { const x = Math.max(0, r[`fed_${c}`] || 0); tot += x; if (x > v) { v = x; best = c; } }); return best ? { cat: best, share: v / tot } : null; };
+
+dash.calc('eventSel', { inputs: ['missions', 'disasters'], title: 'Event linked to the picked mission',
+  description: 'The declaration linked to the damage assessment mission picked (major declaration preferred); empty when none.',
+  fn: (missions, disasters) => {
+    const k = dash.params().daMission; if (!k) return [];
+    const ms = missions.filter((m) => `${m.year}-${m.missionNumber}` === k); if (!ms.length) return [];
+    const m = ms.find((x) => x.type === 'DR') || ms[0];
+    const d = disasters.find((x) => String(x.disasterNumber) === String(m.disasterNumber)); if (!d) return [];
+    const [yr, num] = k.split('-');
+    return [{ disasterNumber: String(d.disasterNumber), type: d.type, title: d.title, hazard: d.hazard, declDate: d.declDate, begin: d.begin, end: d.end,
+      nCounties: d.nCounties, missionKey: k, missionLabel: `${yr} Mission #${num}`, verified: !!m.verified }];
+  } });
 
 // ---- PA: county designations with the picked categories applied
 dash.calc('desigCat', { inputs: ['designations'], title: 'County designations, selected PA categories',
@@ -21,14 +36,24 @@ dash.calc('desigCat', { inputs: ['designations'], title: 'County designations, s
         topCat: t ? t.cat : null, topShare: t ? t.share : null };
     });
   } });
-dash.calc('desigSel', { inputs: ['desigCat'], title: 'County designations, selected hazard', description: 'desigCat for the hazard filter.',
+dash.calc('desigHist', { inputs: ['desigCat', 'eventSel'], title: 'County designations, selected hazard', description: 'desigCat for the hazard filter (history views).',
   fn: (desigCat) => { const hz = HZ(); return desigCat.filter((d) => !hz || d.hazard === hz); } });
+dash.calc('desigSel', { inputs: ['desigHist', 'eventSel'], title: 'County designations, selected hazard or event', description: 'desigHist, narrowed to the linked declaration when a mission is picked.',
+  fn: (desigHist) => { const e = EVENT(); return e ? desigHist.filter((d) => String(d.disasterNumber) === e.disasterNumber) : desigHist; } });
+dash.calc('swSel', { inputs: ['desigSel', 'counties', 'meta'], title: 'Statewide figures for the filters', description: 'Statewide totals for the hazard, categories and event picked.',
+  fn: (h, counties, meta) => { const tested = h.filter((x) => x.metThreshold != null); const gross = d3.sum(h, (x) => x.grossAB || 0), deob = d3.sum(h, (x) => x.deobAB || 0);
+    const pop = d3.sum(counties, (c) => c.pop); const fedAdj = d3.sum(h, (x) => x.fedAdj); const fed = d3.sum(h, (x) => x.fed);
+    return [{ designations: h.length, fed, fedAdj, amt: d3.sum(h, (x) => x.amt), tested: tested.length, met: tested.filter((x) => x.metThreshold === 1).length,
+      zeroPA: h.filter((x) => x.zeroPA).length, grossAB: gross, deobAB: deob, deobRateAB: gross ? deob / gross : null,
+      ealPerCap: fedAdj / meta.years / pop, perResident: fed / pop }]; } });
+dash.calc('eventCounties', { inputs: ['desigSel', 'eventSel'], title: 'Counties in the linked declaration', description: 'Per-county PA results for the event (empty when no event).',
+  fn: (desigSel) => EVENT() ? desigSel.slice().sort((a, b) => (b.thresholdMultiple ?? -1) - (a.thresholdMultiple ?? -1) || a.county.localeCompare(b.county)) : [] });
 
-dash.calc('countyHaz', { inputs: ['counties', 'desigSel', 'meta'], title: 'County scorecard for the filters',
+dash.calc('countyHaz', { inputs: ['counties', 'desigHist', 'meta'], title: 'County scorecard for the filters',
   description: 'Designations, expected federal share per resident, threshold results and score per county.',
-  fn: (counties, desigSel, meta) => {
+  fn: (counties, desigHist, meta) => {
     const YEARS = meta.years;
-    const byCounty = d3.group(desigSel, (d) => d.county);
+    const byCounty = d3.group(desigHist, (d) => d.county);
     const rows = counties.map((c) => {
       const h = byCounty.get(c.county) || [];
       const tested = h.filter((d) => d.metThreshold != null);
@@ -55,7 +80,7 @@ dash.calc('countyHaz', { inputs: ['counties', 'desigSel', 'meta'], title: 'Count
     return rows;
   } });
 
-dash.calc('regionHaz', { inputs: ['desigSel', 'counties', 'meta'], title: 'Regions and statewide for the filters',
+dash.calc('regionHaz', { inputs: ['desigHist', 'counties', 'meta'], title: 'Regions and statewide for the filters',
   description: 'Designations, dollars and threshold results by region plus a statewide row.',
   fn: (d, counties, meta) => {
     const YEARS = meta.years;
@@ -72,7 +97,7 @@ dash.calc('regionHaz', { inputs: ['desigSel', 'counties', 'meta'], title: 'Regio
     });
   } });
 
-dash.calc('econHaz', { inputs: ['desigSel', 'counties', 'meta'], title: 'Economic status groups for the filters',
+dash.calc('econHaz', { inputs: ['desigHist', 'counties', 'meta'], title: 'Economic status groups for the filters',
   description: 'Designations, dollars and threshold results by county economic status.',
   fn: (d, counties, meta) => ['Distressed', 'At-Risk', 'Transitional', 'Competitive', 'Attainment'].map((g) => {
     const cs = counties.filter((c) => c.econ === g); const names = new Set(cs.map((c) => c.county)); const h = d.filter((x) => names.has(x.county));
@@ -95,13 +120,15 @@ dash.calc('disCat', { inputs: ['disasters', 'desigCat'], title: 'Declarations, s
         deobRateAB: r.grossAB ? r.deobAB / r.grossAB : null };
     });
   } });
-dash.calc('disSel', { inputs: ['disCat'], title: 'Declarations, selected hazard', description: 'disCat for the hazard filter.',
+dash.calc('disHist', { inputs: ['disCat', 'eventSel'], title: 'Declarations, selected hazard', description: 'disCat for the hazard filter (trend).',
   fn: (disCat) => { const hz = HZ(); return disCat.filter((r) => !hz || r.hazard === hz); } });
+dash.calc('disSel', { inputs: ['disHist', 'eventSel'], title: 'Declarations, selected hazard or event', description: 'disHist, narrowed to the linked declaration when a mission is picked.',
+  fn: (disHist) => { const e = EVENT(); return e ? disHist.filter((r) => String(r.disasterNumber) === e.disasterNumber) : disHist; } });
 
-dash.calc('trendHaz', { inputs: ['disSel', 'meta'], title: 'Trend by year for the filters',
+dash.calc('trendHaz', { inputs: ['disHist', 'meta'], title: 'Trend by year for the filters',
   description: 'Natural-hazard major disasters, county designations and federal share by declaration year.',
-  fn: (disSel, meta) => {
-    const d = disSel.filter((r) => r.type === 'DR' && !r.nonHazard);
+  fn: (disHist, meta) => {
+    const d = disHist.filter((r) => r.type === 'DR' && !r.nonHazard);
     return d3.range(+meta.windowStart.slice(0, 4), +meta.asOf.slice(0, 4) + 1).map((y) => { const h = d.filter((r) => r.year === y);
       return { year: y, drs: h.length, counties: d3.sum(h, (r) => r.nCounties), fed: d3.sum(h, (r) => r.fed), fedAdj: d3.sum(h, (r) => r.fedAdj) }; });
   } });
@@ -120,9 +147,9 @@ dash.calc('hazCat', { inputs: ['hazards', 'disCat', 'desigCat'], title: 'Hazard 
 // ---- selected county
 dash.calc('countyPick', { inputs: ['countyHaz'], title: 'Selected county', description: 'The county picked on the map or list (highest score if none).',
   fn: (countyHaz) => { const want = dash.params().county; const r = countyHaz.find((c) => c.county === want) || countyHaz[0]; return r ? [r] : []; } });
-dash.calc('countyHist', { inputs: ['desigSel', 'countyHaz'], title: 'Selected county designations', description: 'PA major-disaster designations for the picked county.',
-  fn: (desigSel, countyHaz) => { const c = dash.params().county || (countyHaz[0] && countyHaz[0].county);
-    return desigSel.filter((d) => d.county === c).sort((a, b) => b.declDate.localeCompare(a.declDate)); } });
+dash.calc('countyHist', { inputs: ['desigHist', 'countyHaz'], title: 'Selected county designations', description: 'PA major-disaster designations for the picked county.',
+  fn: (desigHist, countyHaz) => { const c = dash.params().county || (countyHaz[0] && countyHaz[0].county);
+    return desigHist.filter((d) => d.county === c).sort((a, b) => b.declDate.localeCompare(a.declDate)); } });
 dash.calc('countyCompare', { inputs: ['countyHaz', 'regionHaz'], title: 'County vs region vs state', description: 'Picked county beside its region average and the statewide average.',
   fn: (countyHaz, regionHaz) => {
     const want = dash.params().county; const c = countyHaz.find((x) => x.county === want) || countyHaz[0];
@@ -153,14 +180,14 @@ dash.calc('daLinked', { inputs: ['damageAssessments', 'missions', 'disasters'], 
       return { ...r, disasterNumber: m ? String(m.disasterNumber) : null, linkVerified: m ? !!m.verified : null,
         hazard: d ? d.hazard : (m && m.hazard) || DA_EVENT_HAZARD[r.event] || null, hazardFrom: d || (m && m.hazard) ? 'declaration' : DA_EVENT_HAZARD[r.event] ? 'event type' : null }; });
   } });
-dash.calc('daSel', { inputs: ['daLinked'], title: 'Damage assessments for the filters', description: 'Hazard filter and mission filter applied.',
+dash.calc('daSel', { inputs: ['daLinked', 'eventSel'], title: 'Damage assessments for the filters', description: 'Hazard filter and mission filter applied.',
   fn: (rows) => { const hz = HZ(), m = dash.params().daMission || ''; return rows.filter((r) => (!hz || r.hazard === hz) && (!m || r.missionKey === m)); } });
 const daTally = (h) => { const o = { total: h.length }; DA_LEVELS.forEach((l) => { o[l] = h.filter((r) => r.level === l).length; }); return o; };
 dash.calc('daCounty', { inputs: ['daSel', 'counties'], title: 'Damage assessments by county', description: 'Count by damage level per county.',
   fn: (rows, counties) => { const g = d3.group(rows, (r) => r.county);
     return counties.map((c) => ({ county: c.county, region: c.region, ...daTally(g.get(c.county) || []) })).map((r) => ({ ...r, severe: r.Destroyed + r.Major })); } });
 dash.calc('daMissions', { inputs: ['daLinked', 'disasters'], title: 'Damage assessments by mission', description: 'One row per mission (hazard filter applied, mission filter not).',
-  fn: (rows, disasters) => { const hz = HZ(); const dis = new Map(disasters.map((d) => [String(d.disasterNumber), d]));
+  fn: (rows, disasters) => { const hz = dash.params().hazard || ''; const dis = new Map(disasters.map((d) => [String(d.disasterNumber), d]));
     return Array.from(d3.group(rows.filter((r) => !hz || r.hazard === hz), (r) => r.missionKey), ([k, h]) => {
       const f = h[0]; const d = f.disasterNumber ? dis.get(f.disasterNumber) : null;
       return { missionKey: k, year: f.year, mission: f.mission, disasterNumber: f.disasterNumber, linkVerified: f.linkVerified,
