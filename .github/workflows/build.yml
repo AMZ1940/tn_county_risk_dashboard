@@ -50,6 +50,9 @@ jobs:
         run: |
           mkdir _site
           cp -r index.html oauth-callback.html js data downloads _site/
+          # Stamp this commit's ID onto the script links so browsers load the new files after each update
+          V="${GITHUB_SHA::8}"
+          sed -i -E "s#(src=\"js/[^\"]+\.js)\"#\1?v=$V\"#g; s#name=\"dash-version\" content=\"dev\"#name=\"dash-version\" content=\"$V\"#" _site/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:

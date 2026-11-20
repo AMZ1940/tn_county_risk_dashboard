@@ -11,6 +11,9 @@
  * dash.start() is called (js/auth.js calls it after ArcGIS sign-in).
  */
 (function () {
+  // version stamp from <meta name="dash-version">, so a new release never reuses a stale cached file
+  const VERSION = (document.querySelector('meta[name="dash-version"]') || {}).content || '';
+  const VERSION_QS = VERSION && VERSION !== 'dev' ? `?v=${encodeURIComponent(VERSION)}` : '';
   const DATASETS = {
     counties: 'data/counties.json',
     designations: 'data/designations.json',
@@ -89,7 +92,7 @@
     Object.entries(DATASETS).forEach(([name, url]) => {
       if (bundled && bundled[name]) { store[name] = { status: 'ok', data: bundled[name] }; return; }
       store[name] = { status: 'loading', data: null };
-      fetch(url)
+      fetch(url + VERSION_QS)
         .then((r) => { if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`); return r.json(); })
         .then((d) => { store[name] = { status: 'ok', data: d }; })
         .catch((e) => { console.error(e); store[name] = { status: 'error', data: null }; })
@@ -102,7 +105,7 @@
     started = true;
     if (window.DASH_DATA) return setFrom(window.DASH_DATA);
     const sc = document.createElement('script');
-    sc.src = 'js/data-bundle.js';
+    sc.src = 'js/data-bundle.js' + VERSION_QS;
     sc.onload = () => setFrom(window.DASH_DATA);
     sc.onerror = () => setFrom(null);
     document.head.appendChild(sc);
