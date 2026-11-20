@@ -8,7 +8,8 @@
 (function () {
   "use strict";
   const CONFIG = {
-    DA_LAYER_URL: "https://services1.arcgis.com/kILp9lqGUeOhnDbI/arcgis/rest/services/survey123_2c3e3f6ad4a24e10b9fae340ba702624_results/FeatureServer",              // e.g. "https://services.arcgis.com/<org id>/arcgis/rest/services/<service>/FeatureServer/0"
+    DA_LAYER_URL: "https://services1.arcgis.com/kILp9lqGUeOhnDbI/arcgis/rest/services/survey123_2c3e3f6ad4a24e10b9fae340ba702624_results/FeatureServer",
+    // a FeatureServer URL (the layer with the assessment fields is found automatically) or one layer, ending in /FeatureServer/<number>
     TRAINING_MISSION_NUMBER: 999,  // mission number used for training exercises
     // logical field -> aliases or names to look for (first match wins)
     FIELDS: {
@@ -47,8 +48,22 @@
   }
 
   async function loadAll(esriRequest) {
-    const url = CONFIG.DA_LAYER_URL.replace(/\/+$/, "");
-    const info = await request(esriRequest, url, {});
+    let url = CONFIG.DA_LAYER_URL.replace(/\/+$/, "");
+    let info = await request(esriRequest, url, {});
+    // Given the whole FeatureServer (as Survey123 results services are), find the layer or table that
+    // holds the assessment fields; Survey123 services can also hold repeat tables.
+    if (!info.fields && (info.layers || info.tables)) {
+      const want = CONFIG.FIELDS.mission.concat(CONFIG.FIELDS.level).map(key);
+      let found = null;
+      for (const l of [...(info.layers || []), ...(info.tables || [])]) {
+        const li = await request(esriRequest, `${url}/${l.id}`, {});
+        const keys = new Set((li.fields || []).flatMap((f) => [key(f.alias), key(f.name)]));
+        if (CONFIG.FIELDS.mission.some((m) => keys.has(key(m))) && CONFIG.FIELDS.level.some((m) => keys.has(key(m)))) { found = { id: l.id, li }; break; }
+      }
+      if (!found) throw new Error("No layer in this FeatureServer has the mission number and damage level fields.");
+      url = `${url}/${found.id}`;
+      info = found.li;
+    }
     const byKey = new Map();
     (info.fields || []).forEach((f) => { byKey.set(key(f.alias), f.name); byKey.set(key(f.name), f.name); });
     const F = {};
@@ -58,8 +73,8 @@
     const types = new Map((info.fields || []).map((f) => [f.name, f.type]));
     const str = (n) => types.get(n) === "esriFieldTypeString";
     const where = ["1=1"];
-    if (F.trainingOrMission) where.push(`(${F.trainingOrMission} IS NULL OR ${F.trainingOrMission} <> 'Training')`);
-    if (F.softDelete) where.push(`(${F.softDelete} IS NULL OR ${F.softDelete} <> 'yes')`);
+    if (F.trainingOrMission) where.push(`(${F.trainingOrMission} IS NULL OR UPPER(${F.trainingOrMission}) <> 'TRAINING')`);
+    if (F.softDelete) where.push(`(${F.softDelete} IS NULL OR UPPER(${F.softDelete}) <> 'YES')`);
     where.push(str(F.mission) ? `(${F.mission} IS NULL OR ${F.mission} <> '${CONFIG.TRAINING_MISSION_NUMBER}')`
                               : `(${F.mission} IS NULL OR ${F.mission} <> ${CONFIG.TRAINING_MISSION_NUMBER})`);
     const outFields = [...new Set(Object.values(F).filter(Boolean))].join(",");
