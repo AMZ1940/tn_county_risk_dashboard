@@ -23,13 +23,14 @@
     tnCounties: 'data/tnCounties.json',
     meta: 'data/meta.json',
     missions: 'data/missions.json',
+    pdaCosts: 'data/pdaCosts.json',
   };
 
   const store = {};        // name -> { status, data }
   const calcs = [];        // { name, inputs, fn }
   const draws = new Map(); // name -> fn
   // only these keys are filters; anything else in the URL hash (e.g. an OAuth response) is ignored
-  const PARAM_KEYS = ['hazard', 'county', 'mapMetric', 'cats', 'daMission'];
+  const PARAM_KEYS = ['hazard', 'county', 'mapMetric', 'cats', 'view', 'xm', 'cm', 'jMetric'];
   let params = readHash();
 
   function readHash() {
