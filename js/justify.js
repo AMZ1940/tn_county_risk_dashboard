@@ -12,14 +12,22 @@
   const EV = () => HZ() || 'all natural hazards';
 
   // ---------------------------------------------------------------- tabs
-  document.querySelectorAll('.rk [data-tab]').forEach((b) => b.addEventListener('click', () => dash.setParams({ view: b.dataset.tab === 'justify' ? null : b.dataset.tab })));
-  dash.draw('views', () => {
-    const v = P().view === 'analysis' ? 'analysis' : 'justify';
+  // Show the right tab before anything is drawn: charts size themselves to their box, and a box
+  // inside a hidden tab has no width, so drawing it there squashes or stretches it.
+  const applyView = (v) => {
     document.querySelectorAll('.rk [data-tab]').forEach((b) => { const on = b.dataset.tab === v; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
     document.getElementById('view-justify').hidden = v !== 'justify';
     document.getElementById('view-analysis').hidden = v !== 'analysis';
     document.querySelectorAll('.rk .analysis-only').forEach((n) => { n.hidden = v !== 'analysis'; });
-  });
+  };
+  const viewNow = () => (P().view === 'analysis' ? 'analysis' : 'justify');
+  applyView(viewNow());
+  document.querySelectorAll('.rk [data-tab]').forEach((b) => b.addEventListener('click', () => {
+    applyView(b.dataset.tab);                                   // unhide first, then redraw at the real width
+    dash.setParams({ view: b.dataset.tab === 'justify' ? null : b.dataset.tab });
+  }));
+  window.addEventListener('hashchange', () => applyView(viewNow()));
+  dash.draw('views', () => applyView(viewNow()));
 
   // ---------------------------------------------------------------- missions: in history / current
   const STORE = 'tnRisk.missions';

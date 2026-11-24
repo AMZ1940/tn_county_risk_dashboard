@@ -384,7 +384,7 @@ body{margin:0;padding:24px clamp(12px,3vw,40px) 48px;max-width:1280px;margin-inl
     <div class="card" id="da-county"><h3>Damage level by county</h3><p class="muted">Top 20 counties by destroyed + major. Click a bar to load the county.</p><div class="legend" data-draw="da-level-legend"></div><div class="chart tall" data-draw="da-county-bars" data-source="daCounty"></div></div>
     <div class="card" id="da-dwelling-card"><h3>Structure type</h3><p class="muted">Assessments by dwelling type</p><div class="chart" data-draw="da-dwelling" data-source="daDwelling"></div></div>
   </div>
-  <div class="card" id="da-missions" style="margin-top:var(--cds-gap-md)"><h3>By mission</h3><p class="muted">Click a row to filter the dashboard's damage assessments to that mission; click it again to clear.</p>
+  <div class="card" id="da-missions" style="margin-top:var(--cds-gap-md)"><h3>By mission</h3><p class="muted">Every mission in the damage assessment data. Use the Damage assessment missions button in the filter bar to leave a mission out of the history or mark it current.</p>
     <div class="tw tall-table"><table data-source="daMissions" data-row-key="missionKey">
       <thead><tr><th data-field="mission">Mission</th><th data-field="declaration">Declaration</th><th data-field="hazard">Hazard</th><th data-field="first">Assessed</th><th class="n" data-field="counties">Counties</th><th class="n" data-field="total">Total</th><th class="n" data-field="Destroyed">Destroyed</th><th class="n" data-field="Major">Major</th><th class="n" data-field="Minor">Minor</th><th class="n" data-field="Affected">Affected</th><th class="n" data-field="Inaccessible">Inaccessible</th></tr></thead>
       <tbody data-draw="da-mission-rows"></tbody></table></div></div>
