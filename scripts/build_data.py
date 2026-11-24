@@ -7,7 +7,8 @@ Replaceable inputs (drop a newer copy into source/ and run this script, or let t
 
 Reference inputs (change only when needed):
   tn_counties.csv                 county, FIPS, TEMA region, economic status, 2020 population
-  fema_per_capita_indicators.csv  FEMA countywide per capita indicator by fiscal year (add a row each new FY)
+  fema_per_capita_indicators.csv  FEMA countywide (and, where verified, statewide) per capita indicator by fiscal year
+  pda_unit_costs.csv              set dollar amount per damage assessment, by dwelling type and damage level
   grrf_deobligations_AB.csv       Cat A + B gross obligations and deobligations from the GRRF workbook
                                   (the OpenFEMA project file has no deobligation history)
   tnCounties.geojson              county outlines for the map
@@ -78,9 +79,11 @@ pa = read_state(pa_path, "stateAbbreviation")
 cty = pd.read_csv(SRC / "tn_counties.csv", dtype={"fips": str})
 ind_tbl = pd.read_csv(SRC / "fema_per_capita_indicators.csv")
 IND = dict(zip(ind_tbl.fy.astype(int), ind_tbl.countywide.astype(float)))
+IND_STATE = {int(y): float(v) for y, v in zip(ind_tbl.fy, ind_tbl.get("statewide", pd.Series(dtype=float))) if pd.notna(v)}
 BASE_FY = 2026   # adjusted dollars are in this fiscal year's dollars (change to move the base year)
 grrf = pd.read_csv(SRC / "grrf_deobligations_AB.csv", dtype={"disasterNumber": str, "county": str})
 geo = json.loads((SRC / "tnCounties.geojson").read_text())
+pda_costs = pd.read_csv(SRC / "pda_unit_costs.csv") if (SRC / "pda_unit_costs.csv").exists() else pd.DataFrame(columns=["dwelling_type"])
 
 AS_OF = max(date(dec.lastRefresh).max(), date(pa.lastRefresh).max())
 YEARS = (AS_OF - WINDOW_START).days / 365.25
@@ -299,9 +302,11 @@ outputs = {
     "emNotCarried": recs(em_not_carried),
     "missions": recs(missions),
     "tnCounties": geo,
+    "pdaCosts": recs(pda_costs.rename(columns={"dwelling_type": "dwelling"})),
     "meta": {
         "asOf": AS_OF.strftime("%Y-%m-%d"), "windowStart": WINDOW_START.strftime("%Y-%m-%d"), "years": YEARS,
         "baseFY": BASE_FY, "indicators": {str(k): v for k, v in IND.items()},
+        "statewideIndicators": {str(k): v for k, v in IND_STATE.items()}, "statePop": int(cty.pop2020.sum()),
         "categories": [{"code": c, "name": CAT_NAMES[c], "default": c in DEFAULT_CATS} for c in CATS],
         "built": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         "sources": {"declarations": {"file": dec_path.name, "rows": len(dec), "lastRefresh": clean(date(dec.lastRefresh).max())},

@@ -1,11 +1,27 @@
 # Tennessee County Disaster Risk — Historical PA Analysis
 
-A dashboard of Tennessee county disaster risk built from FEMA declarations, FEMA Public Assistance (PA) projects in every category, and TEMA damage assessments. It includes:
+A dashboard of Tennessee disaster declaration history for building declaration justifications, plus county disaster risk built from FEMA declarations, FEMA Public Assistance (PA) projects in every category, and TEMA damage assessments. It includes:
 
 - **Filters:** hazard, PA categories (A–G and Z, with presets), map measure, and damage assessment mission.
 - **County heat map:** clicking a county, or a scorecard row, loads that county's profile.
 - **Analysis sections:** statewide KPIs, the county scorecard, region and economic-status comparisons, hazard characteristics, per capita threshold results, PA by category, trends and gaps.
 - **Damage assessments:** read live from ArcGIS after sign-in. Training records are removed, and each mission is linked to its FEMA declaration.
+
+**Two tabs:**
+- **Declaration justification** (opens first): pick the event type, click a county, and its history opens in a side panel beside its region and the state. Sections:
+  - statewide history for the event type
+  - a county map
+  - region and statewide table
+  - cost by year
+  - past declarations of the type
+  - damage assessment average set costs by event type and dwelling
+- **Detailed analysis:** the earlier sections (scorecard, hazard characteristics, threshold dots, economic status, gaps, declaration table and so on).
+
+**Damage assessment missions** (filter bar): each mission has two checkboxes.
+- **In history:** uncheck a mission that's still under way. Its assessments, and the PA for any declaration it's linked to, are left out of the averages.
+- **Current:** check a mission to open the *Current mission* panel. It shows assessments by county as they come in, estimated cost from the set amounts, PA obligated so far for a linked declaration, each county's threshold today, a total for the counties involved, and the statewide indicator.
+
+The choices are saved in the viewer's browser and in the page address, so a link carries them.
 
 Users sign in with ArcGIS (OAuth 2.0, same setup as the county profile site) before anything loads.
 
@@ -21,7 +37,8 @@ You never edit the dashboard to update it. Replace a file in `source/`. A GitHub
 | `*DisasterDeclarationsSummaries*.csv` | OpenFEMA Disaster Declarations Summaries (v2) | Run the Action with **Download** checked, or upload a new copy |
 | `*PublicAssistanceFundedProjectsDetails*.csv` | OpenFEMA PA Funded Projects Details (v1), all categories | Run the Action with **Download** checked, or upload a Tennessee-only copy |
 | `Mission_Numbers.xlsx` | TEMA mission number → FEMA disaster number | Upload a new copy with the same column headers |
-| `fema_per_capita_indicators.csv` | FEMA countywide per capita indicator by fiscal year | Add a row when FEMA publishes a new fiscal year |
+| `fema_per_capita_indicators.csv` | FEMA countywide (and, where verified, statewide) per capita indicator by fiscal year | Add a row when FEMA publishes a new fiscal year |
+| `pda_unit_costs.csv` | Set dollar amount per damage assessment, by dwelling type and damage level | Fill in the amounts; edit when they change |
 | `tn_counties.csv` | County FIPS, TEMA region, economic status, 2020 population | Rarely |
 | `grrf_deobligations_AB.csv` | Cat A + B deobligations from the GRRF workbook | Static (see notes) |
 | `tnCounties.geojson` | County outlines for the map | Static |
@@ -36,14 +53,14 @@ If you want automatic weekly refreshes, remove the `#` from the two `schedule` l
 
 ## One-time setup
 
-1. **Create the repository.** Upload everything in this folder, including the hidden `.github` folder, for example to `tn-county-risk`.
+1. **Create the repository.** Upload everything in this folder, including the hidden `.github` folder, named `tn_county_risk_dashboard`.
 2. **Turn on Pages.** Go to **Settings → Pages → Build and deployment**, set **Source** to **GitHub Actions**. (This replaces "Deploy from a branch".)
 3. **Allow the Action to save data.** Go to **Settings → Actions → General → Workflow permissions**, choose **Read and write permissions**, and save. If your organization blocks this, the site still publishes, but the rebuilt data isn't saved back to `data/`.
-4. **Run it once.** Go to **Actions → Build and publish dashboard → Run workflow**. The site is at `https://amz1940.github.io/tn-county-risk/`.
-5. **Set up ArcGIS sign-in.** In the OAuth 2.0 credentials item for client ID `w9VaoRCHch2gIU1d`, under **Settings → Redirect URLs**, add:
-   - `https://amz1940.github.io/tn-county-risk/`
-   - `https://amz1940.github.io/tn-county-risk/index.html`
-   - `https://amz1940.github.io/tn-county-risk/oauth-callback.html`
+4. **Run it once.** Go to **Actions → Build and publish dashboard → Run workflow**. The site is at `https://amz1940.github.io/tn_county_risk_dashboard/`.
+5. **Set up ArcGIS sign-in.** In the OAuth 2.0 credentials item for client ID `SOme9Mv9P4kEIzH9`, under **Settings → Redirect URLs**, add:
+   - `https://amz1940.github.io/tn_county_risk_dashboard/`
+   - `https://amz1940.github.io/tn_county_risk_dashboard/index.html`
+   - `https://amz1940.github.io/tn_county_risk_dashboard/oauth-callback.html`
 6. **Connect damage assessments.** Put the damage assessment layer's REST URL in `DA_LAYER_URL` at the top of `js/da.js`. It ends in `/FeatureServer/0` or the right layer number. Fields are found by their aliases, the column headers in `PREDs_Fields.xlsx`, so nothing else needs typing. Sign-in uses the viewer's own ArcGIS account, so they only see the assessments that account is allowed to see.
 
 ## Damage assessments

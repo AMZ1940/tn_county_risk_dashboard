@@ -21,7 +21,7 @@ SETS = [
 
 
 def get(url):
-    req = urllib.request.Request(url, headers={"User-Agent": "tn-county-risk-dashboard"})
+    req = urllib.request.Request(url, headers={"User-Agent": "tn_county_risk_dashboard"})
     with urllib.request.urlopen(req, timeout=600) as r:
         return r.read()
 

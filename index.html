@@ -44,6 +44,29 @@ body{margin:0;padding:24px clamp(12px,3vw,40px) 48px;max-width:1280px;margin-inl
 .topbar .right{display:flex;align-items:center;gap:12px}
 .topbar .user{opacity:.85}
 .topbar button{font:inherit;font-weight:600;border-radius:8px;padding:6px 12px;cursor:pointer;background:transparent;color:#fff;border:1px solid rgba(255,255,255,.35)}
+/* tabs, justification layout, side panel, mission list */
+.rk .tabs{display:flex;gap:4px;border-bottom:1px solid var(--color-border-line)}
+.rk .tabs button{font:inherit;font-weight:600;background:transparent;border:0;border-bottom:3px solid transparent;padding:10px 14px;cursor:pointer;color:var(--color-fg-muted)}
+.rk .tabs button.on{color:var(--color-fg);border-bottom-color:var(--cds-chart-status-critical, #c0392b)}
+.rk .jlayout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:var(--cds-gap-md);align-items:start}
+.rk .jmain{display:flex;flex-direction:column;gap:var(--cds-gap-md);min-width:0}
+.rk .jside{position:sticky;top:120px;max-height:calc(100vh - 140px);overflow:auto;display:flex;flex-direction:column;gap:var(--cds-gap-sm)}
+.rk .jside h3{margin:0}.rk .jside h4{margin:var(--cds-gap-sm) 0 0;font-size:var(--cds-font-size-body)}
+.rk .side-kpi{background:var(--color-bg);border:1px solid var(--color-border-line);border-radius:var(--cds-radius);padding:10px}
+.rk .side-kpi .v{font-family:var(--font-anthropic-serif);font-size:24px}
+.rk .side-kpi .l{color:var(--color-fg-muted);font-size:var(--cds-font-size-caption)}
+.rk table.cmp td,.rk table.cmp th{padding:4px 6px}
+.rk tr.total td{font-weight:700;border-top:2px solid var(--color-border-line)}
+.rk .steps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:2px;color:var(--color-fg-muted);font-size:var(--cds-font-size-caption)}
+.rk .steps b{color:var(--color-fg)}
+.rk .card.current{border:2px solid var(--color-warn)}
+.rk .mwrap{position:relative;display:flex;flex-direction:column;gap:4px}
+.rk .flabel{font-size:var(--cds-font-size-caption);color:var(--color-fg-muted)}
+.rk .flabel-inline{font-size:var(--cds-font-size-caption);color:var(--color-fg-muted);display:flex;align-items:center;gap:6px}
+.rk .mbtn{text-align:left;cursor:pointer}
+.rk .mpanel{position:absolute;top:100%;left:0;z-index:10;width:min(640px,90vw);margin-top:4px;box-shadow:var(--cds-shadow-popover);display:flex;flex-direction:column;gap:8px}
+.rk .mpanel td,.rk .mpanel th{padding:4px 6px}
+@media (max-width:980px){.rk .jlayout{grid-template-columns:1fr}.rk .jside{position:static;max-height:none}}
 </style>
 <!-- d3 must load before the ArcGIS SDK: once the SDK's AMD loader is on the page, d3 would
      register as an AMD module instead of setting window.d3 -->
@@ -120,13 +143,17 @@ body{margin:0;padding:24px clamp(12px,3vw,40px) 48px;max-width:1280px;margin-inl
 
 <div class="rk">
 <header id="top">
-  <h1>Tennessee county disaster risk from declaration history</h1>
-  <p class="muted">FEMA major disaster declarations since January 1999 with Public Assistance (PA) project obligations from OpenFEMA, plus TEMA damage assessments from ArcGIS. Pandemic, Katrina evacuation sheltering and the 2020 Nashville explosion are left out of the risk measures. Data as of <b data-draw="as-of">—</b>. <a href="downloads/TN_County_Disaster_Risk_Tables.xlsx">Download the tables (Excel)</a>.</p>
-  <p class="lede" id="takeaway" data-draw="takeaway" data-source="swSel countyHaz">—</p>
+  <h1>Tennessee disaster declaration history</h1>
+  <p class="muted">What past events of the same type cost, county by county, to help build a declaration justification. FEMA declarations and Public Assistance (PA) projects since January 1999 from OpenFEMA, plus TEMA damage assessments from ArcGIS. Data as of <b data-draw="as-of">—</b>. <a href="downloads/TN_County_Disaster_Risk_Tables.xlsx">Download the tables (Excel)</a>.</p>
 </header>
 
+<nav class="tabs" role="tablist" aria-label="Views" data-draw="views">
+  <button type="button" role="tab" data-tab="justify">Declaration justification</button>
+  <button type="button" role="tab" data-tab="analysis">Detailed analysis</button>
+</nav>
+
 <section id="filters" class="filters" aria-label="Filters">
-  <label>Hazard<select class="dash-select" data-ctl="hazard" data-default="" aria-label="Hazard">
+  <label>Event type<select class="dash-select" data-ctl="hazard" data-default="" aria-label="Event type">
     <option value="">All natural hazards</option>
     <option value="Severe storms &amp; tornadoes">Severe storms &amp; tornadoes</option>
     <option value="Winter storms &amp; ice">Winter storms &amp; ice</option>
@@ -148,7 +175,7 @@ body{margin:0;padding:24px clamp(12px,3vw,40px) 48px;max-width:1280px;margin-inl
       <button type="button" class="btn sm" data-cats-preset="CDEFG">Permanent work (C–G)</button>
     </div>
   </fieldset>
-  <label>Shade map by<select class="dash-select" data-ctl="mapMetric" data-default="score" aria-label="Shade map by">
+  <label class="analysis-only">Shade map by<select class="dash-select" data-ctl="mapMetric" data-default="score" aria-label="Shade map by">
     <option value="score">History-based score</option>
     <option value="paDR">PA major designations</option>
     <option value="p5yr">5-year chance</option>
@@ -156,15 +183,90 @@ body{margin:0;padding:24px clamp(12px,3vw,40px) 48px;max-width:1280px;margin-inl
     <option value="met">Times the indicator was met</option>
     <option value="daSevere">Damage assessments: destroyed + major</option>
     <option value="daTotal">Damage assessments: all</option>
-    <option value="evMult">Linked event: total cost × threshold</option>
-    <option value="evFed">Linked event: federal share</option>
   </select></label>
-  <label>Damage assessment mission<select class="dash-select" data-draw="da-mission-select" aria-label="Damage assessment mission"></select></label>
+  <div class="mwrap"><span class="flabel">Damage assessment missions</span>
+    <button type="button" class="dash-select mbtn" data-missions-toggle aria-expanded="false"><span data-draw="missions-label">Missions…</span> ▾</button>
+    <div class="mpanel card" data-draw="mission-panel" hidden></div></div>
   <button type="button" class="btn" data-reset>Reset filters</button>
-  <p class="event-banner" data-draw="event-banner" hidden></p>
-  <p class="muted" style="flex:1 1 220px">Showing <b data-draw="haz-label">—</b>, PA <b data-draw="cat-label">—</b>. Click a county on the map, the scorecard or the list to load its profile.</p>
+  <p class="muted" style="flex:1 1 220px">Showing <b data-draw="haz-label">—</b>, PA <b data-draw="cat-label">—</b>. Click a county on the map to compare it with its region and the state.</p>
 </section>
 
+<div id="view-justify" class="jlayout">
+<div class="jmain">
+  <ol class="steps">
+    <li><b>Pick the event type</b> that matches what's happening (and the PA categories you want to count).</li>
+    <li><b>Click a county</b> on the map. Its numbers open beside the region and state averages.</li>
+    <li><b>Track a new mission</b> under Damage assessment missions: uncheck it from the history and mark it current to see assessments as they come in.</li>
+  </ol>
+
+  <section id="j-current" class="card current" data-draw="j-cur-section" hidden>
+    <h2>Current mission: <span data-draw="j-cur-title">—</span></h2>
+    <p class="muted" data-draw="j-cur-facts">—</p>
+    <div class="kpis" data-draw="j-cur-kpis" style="margin-top:var(--cds-gap-sm)"></div>
+    <div class="tw tall-table" style="margin-top:var(--cds-gap-md)"><table data-source="curCounties" data-row-key="county">
+      <thead><tr><th>County</th><th class="n">Assessments</th><th class="n">Destroyed</th><th class="n">Major</th><th class="n">Minor</th><th class="n">Affected</th><th class="n">Est. cost (set amounts)</th><th class="n">PA total cost so far</th><th class="n">Threshold today</th><th class="n">PA × threshold</th><th class="n">PA + assessments</th></tr></thead>
+      <tbody data-draw="j-cur-rows"></tbody></table></div>
+  </section>
+
+  <section id="j-history">
+    <h2>History: <span data-draw="j-event-label">—</span></h2>
+    <p class="muted">Major declarations since 1999 with PA in <span data-draw="j-cats">—</span>. Costs are total project cost (federal + non-federal), in <span data-draw="base-fy">—</span> dollars.</p>
+    <div class="kpis" data-draw="j-state" data-source="jState" style="margin-top:var(--cds-gap-sm)"></div>
+  </section>
+
+  <section id="j-map" class="card">
+    <div class="row" style="justify-content:space-between">
+      <h2>Counties</h2>
+      <label class="flabel-inline">Shade by <select class="dash-select" data-jmetric aria-label="Shade the county map by">
+        <option value="avgPerDesig">Average cost per designation</option>
+        <option value="avgPerCap">Average cost per resident</option>
+        <option value="designations">Designations since 1999</option>
+        <option value="metRate">Share meeting the indicator</option>
+        <option value="daSevere">Damage assessments: destroyed + major</option>
+      </select></label>
+    </div>
+    <div class="map" data-draw="j-map" data-source="jCounty tnCounties"></div>
+  </section>
+
+  <section id="j-regions" class="card">
+    <h2>By region and statewide</h2>
+    <div class="tw"><table data-source="jRegions" data-row-key="region">
+      <thead><tr><th>Region</th><th class="n">Counties</th><th class="n">Designations</th><th class="n">Per county</th><th class="n">Avg cost per designation</th><th class="n">Median</th><th class="n">Avg per resident</th><th class="n">Met indicator</th><th class="n">Damage assessments</th><th class="n">Avg set cost</th></tr></thead>
+      <tbody data-draw="j-region-rows"></tbody></table></div>
+  </section>
+
+  <section id="j-trend" class="card">
+    <h2>Total project cost by year</h2>
+    <p class="muted">Major declarations of this event type, <span data-draw="base-fy">—</span> dollars</p>
+    <div class="chart" data-draw="j-trend" data-source="trendHaz"></div>
+  </section>
+
+  <section id="j-events" class="card">
+    <h2>Past declarations of this type</h2>
+    <p class="muted">Per resident is total project cost divided by Tennessee's 2020 population; red means it was at or above today's statewide indicator. Damage assessments only go back as far as the ArcGIS layer does.</p>
+    <div class="tw tall-table"><table data-source="jEvents" data-row-key="disasterNumber">
+      <thead><tr><th>Declaration</th><th>Declared</th><th>Title</th><th class="n">Counties</th><th class="n">Total project cost</th><th class="n">Per resident</th><th class="n">Counties met</th><th>Largest category</th><th class="n">Assessments</th><th class="n">Est. cost (set amounts)</th><th class="n">PA + assessments</th></tr></thead>
+      <tbody data-draw="j-event-rows"></tbody></table></div>
+  </section>
+
+  <section id="j-pda" class="card">
+    <h2>Damage assessments: average set cost by event type and dwelling</h2>
+    <p class="muted">Average set cost per assessment, with the number of assessments in brackets. Missions unchecked from the history are left out.</p>
+    <div class="tw"><table data-source="pdaMatrix" data-row-key="dwelling">
+      <thead><tr><th>Dwelling</th><th class="n">Tornado</th><th class="n">Flood</th><th class="n">Other</th><th class="n">Not recorded</th><th class="n">All events</th></tr></thead>
+      <tbody data-draw="j-pda-rows"></tbody></table></div>
+    <h3 style="margin-top:var(--cds-gap-md)">Set amounts</h3>
+    <p class="muted" data-draw="j-unit-note">—</p>
+    <div class="tw"><table data-source="pdaCosts" data-row-key="dwelling">
+      <thead><tr><th>Dwelling</th><th class="n">Destroyed</th><th class="n">Major</th><th class="n">Minor</th><th class="n">Affected</th><th class="n">Inaccessible</th></tr></thead>
+      <tbody data-draw="j-unit-rows"></tbody></table></div>
+  </section>
+</div>
+<aside class="jside card" data-draw="j-side" aria-label="County comparison"></aside>
+</div>
+
+<div id="view-analysis" hidden>
+<p class="lede" id="takeaway" data-draw="takeaway" data-source="swSel countyHaz">—</p>
 <section id="map" class="card">
   <h2>Counties at a glance</h2>
   <p class="muted">Shading uses five equal-count classes for the selected measure and filters. Darker = higher.</p>
@@ -179,15 +281,6 @@ body{margin:0;padding:24px clamp(12px,3vw,40px) 48px;max-width:1280px;margin-inl
     <div class="card kpi"><div class="l">Deobligated, Cat A + B</div><div class="v" data-draw="k-deob" data-source="swSel" data-field="deobAB">—</div><div class="l"><span data-draw="k-deobrate" data-source="swSel" data-field="deobRateAB">—</span> of gross. From the GRRF workbook; doesn't follow the category filter.</div></div>
     <div class="card kpi"><div class="l">Designated, $0 in these categories</div><div class="v" data-draw="k-zero" data-source="swSel" data-field="zeroPA">—</div><div class="l">Declared more than 2 years ago</div></div>
   </div>
-</section>
-
-<section id="event" class="card" data-draw="event-section" hidden>
-  <h2>Linked event: <span data-draw="ev-title">—</span></h2>
-  <p class="muted" data-draw="ev-facts">—</p>
-  <div class="tw tall-table" style="margin-top:var(--cds-gap-sm)"><table data-source="eventCounties" data-row-key="county">
-    <thead><tr><th data-field="county">County</th><th data-field="region">Region</th><th class="n" data-field="fed">Federal share</th><th class="n" data-field="amt">Total project cost</th><th class="n" data-field="threshold">Threshold</th><th class="n" data-field="thresholdMultiple">× threshold</th><th data-field="topCat">Largest category</th><th class="n" data-field="daTotal">Damage assessments</th><th class="n" data-field="daSevere">Destroyed + major</th></tr></thead>
-    <tbody data-draw="ev-rows"></tbody></table></div>
-  <p class="muted" style="margin-top:var(--cds-gap-sm)">Counties designated for PA in this declaration, sorted by total project cost as a multiple of the countywide threshold. Damage assessment columns count the picked mission. Click a row to load the county profile.</p>
 </section>
 
 <section id="county" class="card">
@@ -308,6 +401,8 @@ body{margin:0;padding:24px clamp(12px,3vw,40px) 48px;max-width:1280px;margin-inl
   <div class="card note" style="margin-top:var(--cds-gap-md)"><h3>Gaps this data can't show yet</h3><p class="muted">Events with damage but no declaration, counties whose preliminary damage assessment met the threshold but were left out, and county resource requests to the state. The damage assessments above are structure counts, not PA dollar estimates, so they can't be tested against the per capita indicator. Adding PA damage estimates and resource requests would fill these in.</p></div>
 </section>
 
+</div>
+
 <details id="method" class="card">
   <summary>How this was worked out, and what to keep in mind</summary>
   <ul>
@@ -333,6 +428,7 @@ body{margin:0;padding:24px clamp(12px,3vw,40px) 48px;max-width:1280px;margin-inl
 <script src="js/rk.js"></script>
 <script src="js/calcs.js"></script>
 <script src="js/draws.js"></script>
+<script src="js/justify.js"></script>
 <script src="js/da.js"></script>
 <script src="js/auth.js"></script>
 </body>
